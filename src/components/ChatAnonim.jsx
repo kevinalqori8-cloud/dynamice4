@@ -31,7 +31,7 @@ export default function ChatAnonim() {
       setUserIp(ip);
       localStorage.setItem("userIp", ip);
     } catch {
-      setUserIp("("0.0.0.0");
+      setUserIp("0.0.0.0");
     }
   };
 
