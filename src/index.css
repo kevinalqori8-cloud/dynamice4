@@ -2,6 +2,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* supaya font global */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap');
 
 :root {
 	--primary-color: #575c84;
@@ -101,6 +103,9 @@ body {
 #root {
 	font-family: "Poppins", sans-serif;
 }
+
+#KotakPesan::-webkit-scrollbar { width: 6px; }
+#KotakPesan::-webkit-scrollbar-thumb { background: #c084fc; border-radius: 10px; }
 
 #BoxGallery {
 	padding: 10%;
@@ -209,6 +214,8 @@ body {
 	color: transparent;
 	text-shadow: #d41a77 2px 0 20px;
 }
+
+.font-quicksand { font-family: 'Quicksand', sans-serif; }
 
 .slick-slide {
 	padding: 0 10px;
