@@ -3,7 +3,7 @@ import Home from "./Pages/Home"
 import Carousel from "./Pages/Gallery"
 import FullWidthTabs from "./Pages/Tabs"
 import Footer from "./Pages/Footer"
-import Chat from "./components/ChatAnonim"
+import ChatAnonimModal from "./components/ChatAnonimModal"
 import AOS from "aos"
 import "aos/dist/aos.css"
 
@@ -14,11 +14,11 @@ function App() {
 	}, [])
 
 	return (
-		<>
+		<Routes>
 			<Home />
 
-			<Carousel />
-			<FullWidthTabs />
+			<Route path="/gallery" element={<Carousel />} />
+			<Routw path="/Tabs" element={<FullWidthTabs />} />
 
 			<div id="Mesh1"></div>
 
@@ -28,7 +28,7 @@ function App() {
 				id="ChatAnonim_lg"
 				data-aos="fade-up"
 				data-aos-duration="1200">
-				<Chat />
+				<Route path="/Chat" element={<ChatAnonimModal />} />
 			</div>
 
 			<Footer />
