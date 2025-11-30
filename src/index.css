@@ -1,9 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700;800;900&display=swap");
+/* 1. satukan satu baris */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;700;800;900&family=Quicksand:wght@400;600&display=swap');
+
+/* 2. baru tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* supaya font global */
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap');
 
 :root {
 	--primary-color: #575c84;

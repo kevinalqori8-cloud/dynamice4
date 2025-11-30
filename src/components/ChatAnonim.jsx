@@ -11,7 +11,6 @@ import {
 import { db, auth } from "../firebase";
 import axios from "axios";
 import Swal from "sweetalert2";
-import { useNavigate } from "react-router-dom";
 
 export default function ChatAnonim() {
   const [msg, setMsg] = useState("");
@@ -20,16 +19,8 @@ export default function ChatAnonim() {
   const [msgCount, setMsgCount] = useState(0);
   const MAX_MSG = 20;
 
-  const navigate = useNavigate();
   const endRef = useRef(null);
-
   const colRef = collection(db, "chats");
-
-  // --- IP & BLACKLIST ---
-  const fetchBlockedIPs = async () => {
-    const snap = await getDocs(collection(db, "blacklist_ips"));
-    return snap.docs.map((d) => d.data().ipAddress);
-  };
 
   const getIp = async () => {
     const cached = localStorage.getItem("userIp");
@@ -40,8 +31,13 @@ export default function ChatAnonim() {
       setUserIp(ip);
       localStorage.setItem("userIp", ip);
     } catch {
-      setUserIp("0.0.0.0");
+      setUserIp("("0.0.0.0");
     }
+  };
+
+  const fetchBlocked = async () => {
+    const snap = await getDocs(collection(db, "blacklist_ips"));
+    return snap.docs.map((d) => d.data().ipAddress);
   };
 
   const loadCount = () => {
@@ -69,7 +65,7 @@ export default function ChatAnonim() {
   useEffect(() => {
     if (!userIp) return;
     (async () => {
-      const list = await fetchBlockedIPs();
+      const list = await fetchBlocked();
       if (list.includes(userIp)) {
         Swal.fire("Info", "Kamu diblokir 🚫", "info");
       }
@@ -77,7 +73,6 @@ export default function ChatAnonim() {
     })();
   }, [userIp]);
 
-  // --- SEND ---
   const send = async () => {
     if (!msg.trim()) return;
     const key = `msg_${userIp}`;
@@ -87,7 +82,7 @@ export default function ChatAnonim() {
       return;
     }
 
-    const blockedList = await fetchBlockedIPs();
+    const blockedList = await fetchBlocked();
     if (blockedList.includes(userIp)) {
       Swal.fire("Blocked", "Kamu tidak bisa kirim pesan.", "error");
       return;
@@ -110,68 +105,66 @@ export default function ChatAnonim() {
 
   const handleKey = (e) => e.key === "Enter" && send();
 
-  // --- BUBBLE CLASS ---
-  const bubble = (ip) =>
+  // --- Bubble styling ---
+  const bubbleClass = (ip) =>
     ip === userIp
       ? "bg-purple-500 text-white self-end rounded-br-none"
       : "bg-gray-200 text-gray-800 self-start rounded-bl-none";
 
-  const align = (ip) => (ip === userIp ? "justify-end" : "justify-start");
+  const alignClass = (ip) => (ip === userIp ? "justify-end" : "justify-start");
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-yellow-100 font-sans">
-      <div className="max-w-md mx-auto h-screen flex flex-col">
-        {/* HEADER + BACK */}
-        <header className="flex items-center gap-3 px-4 py-3 bg-white shadow">
-          <button
-            onClick={() => navigate(-1)}
-            className="text-purple-700 font-bold text-xl"
-          >
-            ← Back
-          </button>
-          <span className="text-2xl">🧑‍🏫</span>
-          <h1 className="text-lg font-bold text-purple-700">Obrolan Kelas</h1>
-        </header>
+    <div id="ChatAnonim" className="max-w-md mx-auto h-screen flex flex-col">
+      {/* Header + Back */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={() => window.history.back()}
+          className="text-white font-bold text-xl"
+        >
+          ← Back
+        </button>
+        <span className="text-2xl">🧑‍🏫</span>
+        <h1 className="text-lg font-bold text-white">Obrolan Kelas</h1>
+      </div>
 
-        {/* CHAT AREA */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-          {msgs.map((m) => (
-            <div key={m.id} className={`flex ${align(m.userIp)}`}>
-              <div
-                className={`max-w-[70%] px-3 py-2 rounded-2xl shadow ${bubble(
-                  m.userIp
-                )}`}
-              >
-                {m.message}
-              </div>
+      {/* Chat Box */}
+      <div id="KotakPesan" className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        {msgs.map((m) => (
+          <div key={m.id} className={`flex ${alignClass(m.userIp)}`}>
+            <div
+              className={`max-w-[70%] px-3 py-2 rounded-2xl shadow ${bubbleClass(
+                m.userIp
+              )}`}
+            >
+              {m.message}
             </div>
-          ))}
-          <div ref={endRef} />
-        </div>
+          </div>
+        ))}
+        <div ref={endRef} />
+      </div>
 
-        {/* INPUT */}
-        <div className="bg-white px-4 py-3 flex items-center gap-2 border-t">
-          <input
-            type="text"
-            value={msg}
-            onChange={(e) => setMsg(e.target.value)}
-            onKeyPress={handleKey}
-            placeholder="Ketik pesan..."
-            maxLength={60}
-            className="flex-1 outline-none text-gray-700 placeholder-gray-400"
-          />
-          <button
-            onClick={send}
-            className="bg-purple-600 text-white px-3 py-2 rounded-full hover:bg-purple-700 transition"
-          >
-            Kirim
-          </button>
-        </div>
+      {/* Input */}
+      <div id="InputChat" className="flex items-center gap-2 px-4 py-3">
+        <input
+          type="text"
+          value={msg}
+          onChange={(e) => setMsg(e.target.value)}
+          onKeyPress={handleKey}
+          placeholder="Ketik pesan..."
+          maxLength={60}
+          className="flex-1 bg-transparent text-white placeholder-white/60 outline-none"
+        />
+        <button
+          onClick={send}
+          className="ml-2"
+        >
+          <img src="/paper-plane.png" alt="Kirim" className="w-5 h-5" />
+        </button>
+      </div>
 
-        {/* SISA PESAN */}
-        <div className="text-center text-xs text-purple-600 bg-white pb-2">
-          {MAX_MSG - msgCount} pesan tersisa hari ini
-        </div>
+      {/* Sisa pesan */}
+      <div className="text-center text-xs text-white/70 pb-2">
+        {MAX_MSG - msgCount} pesan tersisa hari ini
       </div>
     </div>
   );
