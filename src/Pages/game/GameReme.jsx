@@ -11,6 +11,7 @@ export default function GameReme() {
   const [player, setPlayer] = useState(0);
   const [status, setStatus] = useState("");
   const [spinning, setSpinning] = useState(false);
+  const specialnum = [0, 28, 19];
 
   // load & save saldo ke localStorage per-siswa
   const getMoney = () => parseInt(localStorage.getItem(`money_${base.nama}`) || "1000");
@@ -19,7 +20,7 @@ export default function GameReme() {
 
   // simpan uang ke localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(money));
+    setMoney(money);
   }, [money]);
 
   // warna roulette (0-36)
@@ -53,7 +54,7 @@ export default function GameReme() {
       setSpinning(false);
 
       // aturan menang/kalah
-      if (pFinal === 0, 28, 19 && hFinal !== 0, 28, 19) {
+      if (specialnum.includes(pFinal) && !specialnum.includes(hFinal)) {
         // 0 & bukan seri → 3x
         setMoney((m) => m + bet * 3);
         setStatus("🎉 Anda menang 3x!");
