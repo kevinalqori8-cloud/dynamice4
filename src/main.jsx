@@ -5,7 +5,20 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+// ---------- AUTO REFRESH JIKA KONTEN KOSONG ----------
+(function () {
+  const root = document.getElementById("root");
+  // cek setelah 2 detik (biar React selesai render)
+  setTimeout(() => {
+    if (!root || root.innerHTML.trim() === "") {
+      console.warn("[AUTO-REFRESH] Konten kosong → reload sekali");
+      window.location.reload();
+    }
+  }, 2000);
+})();
+// -----------------------------------------------------
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />

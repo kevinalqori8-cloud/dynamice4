@@ -123,17 +123,17 @@ export default function ProfilePage() {
         <h3 className="font-semibold mb-3">Tampilan Publik</h3>
         {data.showWa && data.wa && (
           <a href={data.wa} target="_blank" rel="noreferrer" className="flex items-center gap-2 mb-3 text-sm text-white/80 hover:text-white">
-            <img src="/wa.png" alt="WA" className="w-4 h-4" /> WhatsApp
+            <img src="/wa.svg" alt="WA" className="w-4 h-4" /> WhatsApp
           </a>
         )}
         {data.showIg && data.ig && (
           <a href={data.ig} target="_blank" rel="noreferrer" className="flex items-center gap-2 mb-3 text-sm text-white/80 hover:text-white">
-            <img src="/ig.png" alt="IG" className="w-4 h-4" /> Instagram
+            <img src="/ig.svg" alt="IG" className="w-4 h-4" /> Instagram
           </a>
         )}
         {data.showTiktok && data.tiktok && (
           <a href={data.tiktok} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-white/80 hover:text-white">
-            <img src="/tiktok.png" alt="TT" className="w-4 h-4" /> TikTok
+            <img src="/tiktok.svg" alt="TT" className="w-4 h-4" /> TikTok
           </a>
         )}
       </section>

@@ -1,0 +1,171 @@
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { daftarSiswa } from "../data/siswa";
+
+const defaultPict = "/AnonimUser.png";
+
+export default function PortfolioPage() {
+  const { nama } = useParams();
+  const nav = useNavigate();
+  const base = daftarSiswa.find((s) => s.nama === decodeURIComponent(nama));
+  if (!base) return <div className="text-white p-6">Tidak ditemukan</div>;
+
+  // load data (termasuk password yang sudah di-update)
+  const [data, setData] = useState(() => {
+    const raw = localStorage.getItem(`portfolio_${base.nama}`);
+    return raw
+      ? JSON.parse(raw)
+      : {
+          nama: base.nama,
+          jurusan: base.jurusan,
+          foto: defaultPict,
+          bio: "Halo! Saya siswa kelas D.",
+          wa: "",
+          ig: "",
+          tiktok: "",
+          showWa: true,
+          showIg: true,
+          showTiktok: true,
+          lencana: base.lencana || [],
+          oldPass: "",
+          newPass: "",
+        };
+  });
+
+  const [edit, setEdit] = useState(false);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isOwner = user.nama === base.nama; // hanya owner bisa edit
+
+  const save = () => {
+    const { oldPass, newPass, ...clean } = data;
+    localStorage.setItem(`portfolio_${base.nama}`, JSON.stringify(clean));
+    setEdit(false);
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setData((d) => ({ ...d, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const updatePassword = () => {
+    if (data.oldPass !== base.password) return alert("Password lama salah");
+    if (!data.newPass) return alert("Password baru kosong");
+    const updatedBase = { ...base, password: data.newPass };
+    localStorage.setItem(`portfolio_${base.nama}`, JSON.stringify({ ...data, password: data.newPass }));
+    localStorage.setItem("user", JSON.stringify(updatedBase));
+    alert("Password berhasil diubah");
+    window.location.reload();
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-purple-900 to-black text-white">
+      {/* Header */}
+      <header className="flex items-center gap-3 p-6">
+        <button onClick={() => nav(-1)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">←</button>
+        <h1 className="text-xl font-bold">Portofolio Siswa</h1>
+        {isOwner && (
+          <button onClick={() => setEdit(!edit)} className="ml-auto glass-button px-3 py-1 rounded-lg text-sm">
+            {edit ? "Simpan" : "Edit"}
+          </button>
+        )}
+      </header>
+
+      {/* Hero Section – mirip Amine */}
+      <section className="px-6 pb-10">
+        <div className="max-w-4xl mx-auto flex flex-col lg:flex-row items-center gap-8">
+          {/* Foto + Nama */}
+          <div className="flex-shrink-0">
+            <img src={data.foto} alt="Foto" className="w-64 h-64 rounded-2xl object-cover border-4 border-white/30" />
+            {isOwner && edit && (
+              <input
+                name="foto"
+                value={data.foto}
+                onChange={handleChange}
+                placeholder="URL foto"
+                className="w-full mt-3 bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg text-sm outline-none border border-white/20"
+              />
+            )}
+          </div>
+
+          {/* Teks */}
+          <div className="flex-1">
+            <p className="text-lg text-white/80">Hi, I'm</p>
+            <h2 className="text-4xl font-bold text-purple-400 mt-2">{data.nama}</h2>
+            <p className="text-xl text-white/70 mt-1">{data.jurusan}</p>
+
+            {isOwner && edit && (
+              <textarea
+                name="bio"
+                value={data.bio}
+                onChange={handleChange}
+                placeholder="Bio singkat"
+                rows="3"
+                className="w-full mt-4 bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg text-sm outline-none border border-white/20"
+              />
+            )}
+            {!edit && <p className="mt-4 text-white/80 leading-relaxed">{data.bio}</p>}
+
+            {/* Sosmed Toggle */}
+            <div className="flex flex-wrap gap-4 mt-6">
+              {data.showWa && data.wa && (
+                <a href={data.wa} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/10 text-white/80 hover:text-white">
+                  <img src="/wa.svg" alt="WA" className="w-4 h-4" /> WhatsApp
+                </a>
+              )}
+              {data.showIg && data.ig && (
+                <a href={data.ig} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/10 text-white/80 hover:text-white">
+                  <img src="/ig.svg" alt="IG" className="w-4 h-4" /> Instagram
+                </a>
+              )}
+              {data.showTiktok && data.tiktok && (
+                <a href={data.tiktok} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/10 text-white/80 hover:text-white">
+                  <img src="/tiktok.svg" alt="TT" className="w-4 h-4" /> TikTok
+                </a>
+              )}
+            </div>
+
+            {/* Lencana */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {data.lencana?.map((b) => (
+                <span key={b} className="px-3 py-1 rounded-lg bg-purple-500/20 text-purple-300 text-xs">
+                  {b}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Edit Section (hanya owner) */}
+      {isOwner && edit && (
+        <>
+          {/* Ganti Password */}
+          <section className="max-w-md mx-auto glass-lonjong rounded-2xl p-6 mb-6">
+            <h3 className="font-semibold mb-3">Ganti Password</h3>
+            <input name="oldPass" value={data.oldPass || ""} onChange={handleChange} placeholder="Password lama" type="password" className="w-full bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg mb-3 outline-none border border-white/20" />
+            <input name="newPass" value={data.newPass || ""} onChange={handleChange} placeholder="Password baru" type="password" className="w-full bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg mb-3 outline-none border border-white/20" />
+            <button onClick={updatePassword} className="w-full glass-button py-2 rounded-lg">Update Password</button>
+          </section>
+
+          {/* Sosmed Toggle */}
+          <section className="max-w-md mx-auto glass-lonjong rounded-2xl p-6 mb-6">
+            <h3 className="font-semibold mb-3">Sosial Media</h3>
+            {["wa", "ig", "tiktok"].map((key) => (
+              <div key={key} className="flex items-center justify-between mb-3">
+                <span className="text-sm capitalize">{key}</span>
+                <div className="flex items-center gap-2">
+                  <input name={key} value={data[key]} onChange={handleChange} placeholder={`Link ${key}`} className="flex-1 bg-white/10 placeholder-white/60 px-2 py-1 rounded text-xs outline-none border border-white/20" />
+                  <label className="flex items-center gap-1 text-xs">
+                    <input type="checkbox" name={`show${key.charAt(0).toUpperCase() + key.slice(1)}`} checked={data[`show${key.charAt(0).toUpperCase() + key.slice(1)}`]} onChange={handleChange} className="scale-75" />
+                    Tampil
+                  </label>
+                </div>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+

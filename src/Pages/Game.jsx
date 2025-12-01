@@ -2,9 +2,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const branches = [
-  { label: "💬 Chat Anonim", path: "/chat/anonim", color: "from-purple-500 to-indigo-500" },
-  { label: "💡 Suggestion",  path: "/suggestion",  color: "from-cyan-500 to-blue-500" },
-  { label: "🚀 Game",  path: "/game",    color: "from-pink-500 to-rose-500" },
+  { label: "🐱 Game Reme", path: "/game/reme", color: "from-purple-500 to-indigo-500" },
+  { label: "👑 Game Mines",  path: "/game/mines",  color: "from-cyan-500 to-blue-500" },
 ];
 
 export default function ChatMindMap() {
@@ -76,4 +75,5 @@ export default function ChatMindMap() {
     </div>
   );
 }
+
 

@@ -13,6 +13,9 @@ import SuggestionPage from "./Pages/SuggestionPage";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import ProfilePage from "./Pages/ProfilePage";
+import PortfolioPage from "./Pages/PortfolioPage";
+import Mines from "./Pages/game/Mines";
+import GameReme from "./Pages/game/GameReme";
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
@@ -38,7 +41,9 @@ export default function App() {
 	<Route path="/suggestion" element={<SuggestionPage />} />
 	// App.jsx (tambahan route)
 	<Route path="/profile/:nama" element={<ProfilePage />} />
-
+	<Route path="/portfolio/:nama" element={<PortfolioPage />} />
+	<Route path="/game/reme" element={<GameReme />} />
+	<Route path="/game/mines" element={<Mines />} />
     </Routes>
   );
 }
