@@ -59,11 +59,11 @@ export default function Navbar() {
 
       {/* ======= MOBILE ======= */}
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-40"
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 px-4 pt-4"
         data-aos="fade-down"
         data-aos-duration="600"
       >
-        <div className="mx-4 mt-4 mb-2 flex items-center justify-between rounded-full glass-card px-4 py-3">
+        <div className="flex items-center justify-between rounded-full glass-card px-4 py-3">
           {/* Left hamburger */}
           <button
             onClick={() => setOpen(!open)}
@@ -135,7 +135,7 @@ export default function Navbar() {
       {/* Overlay backdrop */}
       {open && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-30"
+          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
           onClick={() => setOpen(false)}
         />
       )}

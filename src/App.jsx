@@ -5,7 +5,8 @@ import Home from "./Pages/Home";
 import Gallery from "./Pages/Gallery";
 import Tabs from "./Pages/Tabs";
 import Footer from "./Pages/Footer";
-import ChatAnonimModal from "./components/ChatAnonimModal";
+import ChatPage from "./Pages/ChatPage"; // halaman khusus chat
+import Navbar from "./components/Navbar";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
@@ -13,6 +14,7 @@ function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
   return (
     <>
+      <Navbar />
       <Home />
       <Gallery />
       <Tabs />
@@ -23,16 +25,10 @@ function Layout() {
 
 export default function App() {
   return (
-    <>
-      {/* semua halaman */}
-      <Routes>
-        <Route path="/" element={<Layout />} />
-        <Route path="/chat" element={<ChatAnonimModal />} />
-      </Routes>
-
-      {/* portal modal tetap di-render supaya bisa muncul di /chat */}
-      <div id="chat-portal" />
-    </>
+    <Routes>
+      <Route path="/" element={<Layout />} />
+      <Route path="/chat" element={<ChatPage />} />
+    </Routes>
   );
 }
 
