@@ -3,55 +3,7 @@ import React, { useState, useEffect } from "react";
 
 const STORAGE_KEY = "chat_anonim";
 const MAX_MSG     = 20;
-const USER_IP     = "anon_" + Math.floor(Math.random() * 10000); // dummy IP
-
-const Fade = React.forwardRef(function Fade(props, ref) {
-        const { children, in: open, onClick, onEnter, onExited, ownerState, ...other } = props
-        const style = useSpring({
-                from: { opacity: 0 },
-                to: { opacity: open ? 1 : 0 },
-                config: {
-                        duration: open ? 200 : 50, // Mengatur durasi berdasarkan kondisi open
-                },
-                onStart: () => {
-                        if (open && onEnter) {
-                                onEnter(null, true)
-                        }
-                },
-                onRest: () => {
-                        if (!open && onExited) {
-                                onExited(null, true)
-                        }
-                },
-        })
-
-        return (
-                <animated.div ref={ref} style={style} {...other}>
-                        {React.cloneElement(children, { onClick })}
-                </animated.div>
-        )
-})
-
-Fade.propTypes = {
-        children: PropTypes.element.isRequired,
-        in: PropTypes.bool,
-        onClick: PropTypes.any,
-        onEnter: PropTypes.func,
-        onExited: PropTypes.func,
-        ownerState: PropTypes.any,
-}
-
-/* const style = {
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: 400,
-        bgcolor: "background.paper",
-        border: "2px solid red",
-        boxShadow: 24,
-        p: 4,
-} */
+const USER_IP     = "anon_" + Math.floor(Math.random() * 10000);
 
 export default function ChatAnonimLocal() {
   const [msg, setMsg]   = useState("");
@@ -95,15 +47,14 @@ export default function ChatAnonimLocal() {
 
   return (
     <div className="flex flex-col h-full text-white">
-      <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-        <span className="text-sm">Obrolan Anonim</span>
-        <span className="ml-auto text-xs text-white/60">
-          {MAX_MSG - msgs.length} tersisa
-        </span>
-      </div>
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <span className="text-sm font-medium">Obrolan Anonim</span>
+        <span className="text-xs text-white/60">{MAX_MSG - msgs.length} tersisa</span>
+      </header>
 
-      {/* pesan */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 text-sm">
+      {/* Pesan */}
+      <main className="flex-1 overflow-y-auto px-4 py-2 space-y-2 text-sm">
         {msgs.map((m, i) => (
           <div key={i} className={`flex ${align(m.userIp)}`}>
             <div
@@ -116,10 +67,10 @@ export default function ChatAnonimLocal() {
           </div>
         ))}
         <div id="chat-end" />
-      </div>
+      </main>
 
-      {/* input */}
-      <div className="px-4 py-3 border-t border-white/10 flex items-center gap-2">
+      {/* Input */}
+      <footer className="px-4 py-3 border-t border-white/10 flex items-center gap-2">
         <input
           className="flex-1 bg-white/10 placeholder-white/60 px-3 py-2 rounded-full text-sm outline-none border border-white/20 focus:border-white/40"
           placeholder="Ketik pesan..."
@@ -130,13 +81,12 @@ export default function ChatAnonimLocal() {
         />
         <button
           onClick={send}
-          className="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-500 flex items-center justify-center transition"
+          className="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-500 flex items-center justify-center transition active:scale-95"
         >
           <img src="/paper-plane.png" alt="Kirim" className="w-4 h-4" />
         </button>
-      </div>
+      </footer>
     </div>
   );
 }
-
 
