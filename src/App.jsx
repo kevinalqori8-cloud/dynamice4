@@ -9,6 +9,7 @@ import ChatPage from "./Pages/ChatPage"; // halaman khusus chat
 import Navbar from "./components/Navbar";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import SuggestionChat from "./Pages/SuggestionPage"; // kompon suggestion (editor)
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
@@ -17,6 +18,7 @@ function Layout() {
       <Navbar />
       <Home />
       <Gallery />
+	<SuggestionBox />
       <Tabs />
       <Footer />
     </>
@@ -27,7 +29,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />} />
-      <Route path="/chat" element={<ChatPage />} />
+      <Route path="/chat" element={<ChatMindMap />} />
+	<Route path="/chat/anonim" element={<ChatAnonimLocalPage />} />
+	<Route path="/suggestion" element={<SuggestionPage />} />
     </Routes>
   );
 }
