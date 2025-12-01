@@ -12,6 +12,7 @@ import ChatAnonimLocalPage from "./Pages/ChatAnonimLocalPage"; // ⬅ baru
 import SuggestionPage from "./Pages/SuggestionPage";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import ProfilePage from "./Pages/ProfilePage";
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
@@ -34,6 +35,9 @@ export default function App() {
       <Route path="/chat" element={<ChatMindMap />} />
 	<Route path="/chat/anonim" element={<ChatAnonimLocalPage />} />
 	<Route path="/suggestion" element={<SuggestionPage />} />
+	// App.jsx (tambahan route)
+	<Route path="/profile/:nama" element={<ProfilePage />} />
+
     </Routes>
   );
 }
