@@ -16,6 +16,7 @@ import ProfilePage from "./Pages/ProfilePage";
 import PortfolioPage from "./Pages/PortfolioPage";
 import Mines from "./Pages/game/Mines";
 import GameReme from "./Pages/game/GameReme";
+import Game from "./Pages/Game";
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
@@ -44,6 +45,7 @@ export default function App() {
 	<Route path="/portfolio/:nama" element={<PortfolioPage />} />
 	<Route path="/game/reme" element={<GameReme />} />
 	<Route path="/game/mines" element={<Mines />} />
+	<Route path="/game" element={<game />} />
     </Routes>
   );
 }
