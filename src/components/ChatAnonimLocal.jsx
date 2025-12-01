@@ -5,6 +5,52 @@ const STORAGE_KEY = "chat_anonim";
 const MAX_MSG     = 20;
 const USER_IP     = "anon_" + Math.floor(Math.random() * 10000); // dummy IP
 
+const Fade = React.forwardRef(function Fade(props, ref) {
+        const { children, in: open, onClick, onEnter, onExited, ownerState, ...other } = props
+        const style = useSpring({
+                from: { opacity: 0 },
+                to: { opacity: open ? 1 : 0 },
+                config: {
+                        duration: open ? 200 : 50, // Mengatur durasi berdasarkan kondisi open
+                },
+                onStart: () => {
+                        if (open && onEnter) {
+                                onEnter(null, true)
+                        }
+                },
+                onRest: () => {
+                        if (!open && onExited) {
+                                onExited(null, true)
+                        }
+                },
+        })
+
+        return (
+                <animated.div ref={ref} style={style} {...other}>
+                        {React.cloneElement(children, { onClick })}
+                </animated.div>
+        )
+})
+                                                                                                  Fade.propTypes = {
+        children: PropTypes.element.isRequired,
+        in: PropTypes.bool,
+        onClick: PropTypes.any,
+        onEnter: PropTypes.func,
+        onExited: PropTypes.func,
+        ownerState: PropTypes.any,
+}
+                                                                                                  /* const style = {
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 400,
+        bgcolor: "background.paper",
+        border: "2px solid red",
+        boxShadow: 24,
+        p: 4,
+} */
+
 export default function ChatAnonimLocal() {
   const [msg, setMsg]   = useState("");
   const [msgs, setMsgs] = useState([]);
