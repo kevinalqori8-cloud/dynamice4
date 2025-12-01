@@ -31,7 +31,8 @@ const Fade = React.forwardRef(function Fade(props, ref) {
                 </animated.div>
         )
 })
-                                                                                                  Fade.propTypes = {
+
+Fade.propTypes = {
         children: PropTypes.element.isRequired,
         in: PropTypes.bool,
         onClick: PropTypes.any,
@@ -39,7 +40,8 @@ const Fade = React.forwardRef(function Fade(props, ref) {
         onExited: PropTypes.func,
         ownerState: PropTypes.any,
 }
-                                                                                                  /* const style = {
+
+/* const style = {
         position: "absolute",
         top: "50%",
         left: "50%",
