@@ -59,7 +59,7 @@ Fade.propTypes = {
 	p: 4,
 } */
 
-export default function BoxTextAnonim() {
+export default function BoxTextAnonimss() {
 	const [open, setOpen] = React.useState(false)
 	const handleOpen = () => setOpen(true)
 	const handleClose = () => setOpen(false)
