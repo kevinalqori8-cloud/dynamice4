@@ -1,15 +1,17 @@
-// src/App.jsx
 import React, { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import Home from "./Pages/Home";
 import Gallery from "./Pages/Gallery";
 import Tabs from "./Pages/Tabs";
 import Footer from "./Pages/Footer";
-import ChatPage from "./Pages/ChatPage"; // halaman khusus chat
+import ChatPage from "./Pages/ChatPage";
 import Navbar from "./components/Navbar";
+import SuggestionBox from "./components/SuggestionBox";     // ⬅ baru
+import ChatMindMap from "./Pages/ChatMindMap";              // ⬅ baru
+import ChatAnonimLocalPage from "./Pages/ChatAnonimLocalPage"; // ⬅ baru
+import SuggestionPage from "./Pages/SuggestionPage";
 import AOS from "aos";
 import "aos/dist/aos.css";
-import SuggestionChat from "./Pages/SuggestionPage"; // kompon suggestion (editor)
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
