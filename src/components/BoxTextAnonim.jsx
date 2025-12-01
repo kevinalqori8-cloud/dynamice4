@@ -1,109 +1,56 @@
-import * as React from "react"
-import PropTypes from "prop-types"
-import Backdrop from "@mui/material/Backdrop"
-import Box from "@mui/material/Box"
-import Modal from "@mui/material/Modal"
-import Button from "@mui/material/Button"
-import Typography from "@mui/material/Typography"
-import { useSpring, animated } from "@react-spring/web"
-import Chat from "./ChatAnonim"
-
-// Impor ikon tombol silang (close button)
-import CloseIcon from "@mui/icons-material/Close"
-
-const Fade = React.forwardRef(function Fade(props, ref) {
-	const { children, in: open, onClick, onEnter, onExited, ownerState, ...other } = props
-	const style = useSpring({
-		from: { opacity: 0 },
-		to: { opacity: open ? 1 : 0 },
-		config: {
-			duration: open ? 200 : 50, // Mengatur durasi berdasarkan kondisi open
-		},
-		onStart: () => {
-			if (open && onEnter) {
-				onEnter(null, true)
-			}
-		},
-		onRest: () => {
-			if (!open && onExited) {
-				onExited(null, true)
-			}
-		},
-	})
-
-	return (
-		<animated.div ref={ref} style={style} {...other}>
-			{React.cloneElement(children, { onClick })}
-		</animated.div>
-	)
-})
-
-Fade.propTypes = {
-	children: PropTypes.element.isRequired,
-	in: PropTypes.bool,
-	onClick: PropTypes.any,
-	onEnter: PropTypes.func,
-	onExited: PropTypes.func,
-	ownerState: PropTypes.any,
-}
-
-/* const style = {
-	position: "absolute",
-	top: "50%",
-	left: "50%",
-	transform: "translate(-50%, -50%)",
-	width: 400,
-	bgcolor: "background.paper",
-	border: "2px solid red",
-	boxShadow: 24,
-	p: 4,
-} */
+// src/components/BoxTextAnonim.jsx
+import React, { useState } from "react";
+import ChatAnonimLocal from "./ChatAnonimLocal";
 
 export default function BoxTextAnonim() {
-	const [open, setOpen] = React.useState(false)
-	const handleOpen = () => setOpen(true)
-	const handleClose = () => setOpen(false)
+  const [open, setOpen] = useState(false);
 
-	return (
-		<div>
-			<div onClick={handleOpen}  >
-				<div  id="BoxTextAnonim">
-					<div className="flex justify-between">
-						<img src="/paper-plane.png" alt="" className="w-auto h-6" />
-						<img src="/next.png" alt="" className="h-3 w-3" />
-					</div>
-					<h1 className="capitalize text-white text-left pr-5 text-base font-semibold  mt-5">Text Anonim</h1>
-				</div>
-			</div>
+  return (
+    <>
+      {/* ======= BOX KECIL (trigger) ======= */}
+      <div
+        onClick={() => setOpen(true)}
+        className="glass-card rounded-2xl p-4 w-40 cursor-pointer hover:scale-105 transition-transform"
+      >
+        <div className="flex items-center justify-between">
+          <img src="/paper-plane.png" alt="" className="w-6 h-6" />
+          <img src="/next.png" alt="" className="w-3 h-3" />
+        </div>
+        <h1 className="text-white text-left font-semibold mt-3">Text Anonim</h1>
+      </div>
 
-			<Modal
-				aria-labelledby="spring-modal-title"
-				aria-describedby="spring-modal-description"
-				open={open}
-				onClose={handleClose}
-				closeAfterTransition
-				slots={{ backdrop: Backdrop }}
-				slotProps={{
-					backdrop: {
-						TransitionComponent: Fade,
-					},
-				}}>
-				<Fade in={open}>
-					<Box className="" id="modal-container-chat">
-						{/* Tambahkan tombol silang di kanan atas */}
-						<Button onClick={handleClose} style={{ position: "absolute", top: "2%", right: "0" , color: "white",opacity: "70%"}}>
-							<CloseIcon />
-						</Button>
-						{/* <Typography id="spring-modal-title" variant="h6" component="h2">
-							Text in a modal
-						</Typography> */}
-						<Typography id="spring-modal-description" sx={{ mt: 3 }}>
-							<Chat/>
-						</Typography>
-					</Box>
-				</Fade>
-			</Modal>
-		</div>
-	)
+      {/* ======= MODAL GLASS ======= */}
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setOpen(false)}
+        >
+          {/* backdrop blur */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+
+          {/* modal content */}
+          <div
+            className="relative w-full max-w-sm h-[70vh] rounded-2xl 
+                         bg-white/10 backdrop-blur-xl border border-white/20 
+                         shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* close button */}
+            <button
+              onClick={() => setOpen(false)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full 
+                         bg-white/10 hover:bg-white/20 flex items-center justify-center 
+                         text-white text-lg transition"
+            >
+              ✕
+            </button>
+
+            {/* Chat component */}
+            <ChatAnonimLocal />
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 

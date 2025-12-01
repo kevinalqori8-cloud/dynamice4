@@ -1,6 +1,6 @@
 import BoxClassIg from "../components/BoxClassIg"
 import BoxOldWeb from "../components/BoxOldWeb"
-import ChatAnonimLocal from "../components/ChatAnonimLocal"
+import BoxTextAnonim from "../components/BoxTextAnonim"
 import Navbar from "../components/Navbar"
 
 const Home = () => {
@@ -34,7 +34,7 @@ const Home = () => {
 					</div>
 					<div className="grid gap-2 md:gap-0 md:grid-cols-1">
 						<BoxOldWeb />
-						<ChatAnonimLocal />
+						<BoxTextAnonim />
 					</div>
 				</div>
 			</div>
