@@ -61,11 +61,16 @@ export default function GameReme() {
         // menang → 2x
         setMoney((m) => m + bet * 2);
         setStatus("🎉 Anda menang 2x!");
-      } else if (pFinal ==< hFinal) {
+      } else if (pFinal === hFinal) {
         // seri → kalah
         setMoney((m) => m - bet);
-        setStatus("😞 Seri – Anda kalah");
-      } else {
+        setStatus("😞 Anda kalah");
+      } else if (pFinal < hFinal) {
+        // seri → kalah
+        setMoney((m) => m - bet);
+        setStatus("😞 Anda kalah");
+	}
+	 else {
         // kalah
         setMoney((m) => m - bet);
         setStatus("😞 Anda kalah");
