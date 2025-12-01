@@ -20,8 +20,8 @@ function Layout() {
       <Navbar />
       <Home />
       <Gallery />
-	<SuggestionBox />
       <Tabs />
+	<SuggestionBox />
       <Footer />
     </>
   );

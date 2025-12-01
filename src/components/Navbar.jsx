@@ -52,7 +52,7 @@ export default function Navbar() {
             onClick={() => nav("/chat")}
             className="ml-4 px-4 py-2 rounded-full glass-button text-sm"
           >
-            💬 Text Anonim
+            Text Anonim
           </button>
         </nav>
       </header>
