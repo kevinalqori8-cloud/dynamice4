@@ -32,6 +32,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />} />
+	<Route path="/menu" element={<ChatMindMap />} />
       <Route path="/chat" element={<ChatMindMap />} />
 	<Route path="/chat/anonim" element={<ChatAnonimLocalPage />} />
 	<Route path="/suggestion" element={<SuggestionPage />} />
