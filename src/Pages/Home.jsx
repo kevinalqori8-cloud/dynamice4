@@ -1,6 +1,6 @@
 import BoxClassIg from "../components/BoxClassIg"
 import BoxOldWeb from "../components/BoxOldWeb"
-import BoxTextAnonim from "../components/BoxTextAnonim"
+import ChatAnonimLocal from "../components/ChatAnonimLocal"
 import Navbar from "../components/Navbar"
 
 const Home = () => {
