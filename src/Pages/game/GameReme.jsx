@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { daftarSiswa } from "../../dsta/siswa";
+import { daftarSiswa } from "../../data/siswa";
 
 const STORAGE_KEY = "game_money";
 
@@ -96,7 +96,7 @@ export default function GameReme() {
       {/* Saldo */}
       <div className="mb-6 text-center">
         <p className="text-white/70">Saldo Anda</p>
-        <p className="text-3xl font-bold text-purple-400">Rp {localStorage.getItem(`money_${base.nama}</p>
+        <p className="text-3xl font-bold text-purple-400">Rp {localStorage.getItem(`money_${base.nama})</p>
       </div>
 
       {/* Game Board – glass-lonjong */}
