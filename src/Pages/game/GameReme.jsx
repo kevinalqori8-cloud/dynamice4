@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useUserData } from '../../hooks/useFirebaseData';
 import { userService } from '../../service/firebaseService';
 
-const GRID_SIZE = 37; // 0-36
-const SPECIAL_NUMBERS = [0, 28, 19]; // Jackpot numbers
+const GRID_SIZE = 5;
+const TOTAL_BOXES = GRID_SIZE * GRID_SIZE;
 
 export default function GameReme() {
   const navigate = useNavigate();
@@ -46,23 +46,11 @@ export default function GameReme() {
 
   // Load last results
   useEffect(() => {
-    const saved = localStorage.getItem('reme_last_results');
+    const saved = localStorage.getItem('gameResults');
     if (saved) {
       setLastResults(JSON.parse(saved));
     }
   }, []);
-
-  // Utility functions
-  const getColor = (n) => {
-    if (n === 0) return "bg-green-500";
-    return n % 2 === 0 ? "bg-white text-black" : "bg-red-500";
-  };
-
-  const calcDigit = (n) => {
-    let sum = String(n).split("").reduce((a, b) => Number(a) + Number(b), 0);
-    if (sum > 9) sum = Number(String(sum).slice(-1));
-    return sum;
-  };
 
   const savePlayerName = async (name) => {
     if (!name.trim()) return;
@@ -79,14 +67,48 @@ export default function GameReme() {
   };
 
   const saveLastResult = (result) => {
-    const updated = [result, ...lastResults].slice(0, 10);
+    const updated = [result, ...lastResults].slice(0, 5);
     setLastResults(updated);
-    localStorage.setItem('reme_last_results', JSON.stringify(updated));
+    localStorage.setItem('gameResults', JSON.stringify(updated));
+  };
+
+  const updateMoney = async (newAmount, transactionType, amount) => {
+    try {
+      await set(MONEY_REF, newAmount);
+      
+      const transaction = {
+        type: transactionType,
+        amount: amount,
+        newBalance: newAmount,
+        timestamp: Date.now(),
+        game: 'GameReme'
+      };
+      
+      await push(TRANSACTIONS_REF, transaction);
+      setMoney(newAmount);
+    } catch (error) {
+      console.error("Error updating money:", error);
+      // Fallback to localStorage
+      localStorage.setItem('globalMoney', String(newAmount));
+      setMoney(newAmount);
+    }
+  };
+
+  // Game logic
+  const getColor = (n) => {
+    if (n === 0) return "bg-green-500";
+    return n % 2 === 0 ? "bg-white text-black" : "bg-red-500";
+  };
+
+  const calcDigit = (n) => {
+    let sum = String(n).split("").reduce((a, b) => Number(a) + Number(b), 0);
+    if (sum > 9) sum = Number(String(sum).slice(-1));
+    return sum;
   };
 
   const spin = async () => {
     if (bet <= 0 || bet > money) {
-      setStatus("❌ Bet tidak valid! Pastikan saldo cukup.");
+      alert("Bet tidak valid! Pastikan saldo cukup.");
       return;
     }
     
@@ -95,108 +117,65 @@ export default function GameReme() {
 
     // Animation sequence
     const spinInterval = setInterval(() => {
-      setHouseNumber(Math.floor(Math.random() * GRID_SIZE));
-      setPlayerNumber(Math.floor(Math.random() * GRID_SIZE));
+      setHouseNumber(Math.floor(Math.random() * 37));
+      setPlayerNumber(Math.floor(Math.random() * 37));
     }, 100);
 
-    setTimeout(async () => {
+    setTimeout(() => {
       clearInterval(spinInterval);
       
-      // Generate final numbers
-      const hNum = Math.floor(Math.random() * GRID_SIZE);
-      const pNum = Math.floor(Math.random() * GRID_SIZE);
+      const h = Math.floor(Math.random() * 37);
+      const p = Math.floor(Math.random() * 37);
       
-      const hDigit = calcDigit(hNum);
-      const pDigit = calcDigit(pNum);
+      const hFinal = calcDigit(h);
+      const pFinal = calcDigit(p);
 
-      setHouseNumber(hNum);
-      setPlayerNumber(pNum);
-      setHouseDigit(hDigit);
-      setPlayerDigit(pDigit);
+      setHouseNumber(hFinal);
+      setPlayerNumber(pFinal);
 
       // Calculate result
       let resultText = "";
       let moneyChange = 0;
-      let multiplier = 0;
 
-      if (SPECIAL_NUMBERS.includes(pDigit) && !SPECIAL_NUMBERS.includes(hDigit)) {
-        // Jackpot! 3x win
+      if (specialnum.includes(pFinal) && !specialnum.includes(hFinal)) {
         moneyChange = bet * 3;
-        multiplier = 3;
-        resultText = "🎉 JACKPOT! Menang 3x!";
-      } else if (pDigit > hDigit) {
-        // Regular win - 2x
+        resultText = "🎉 Jackpot! Menang 3x!";
+        updateMoney(money + bet * 3, 'win', bet * 3);
+      } else if (pFinal > hFinal) {
         moneyChange = bet * 2;
-        multiplier = 2;
         resultText = "🎉 Menang 2x!";
-      } else if (pDigit === hDigit) {
-        // Draw - lose bet
+        updateMoney(money + bet * 2, 'win', bet * 2);
+      } else if (pFinal === hFinal) {
         moneyChange = -bet;
-        multiplier = -1;
-        resultText = "🤝 Seri - kalah taruhan";
+        resultText = "😞 Seri - kalah taruhan";
+        updateMoney(money - bet, 'lose', -bet);
       } else {
-        // Loss
         moneyChange = -bet;
-        multiplier = -1;
         resultText = "😞 Kalah";
+        updateMoney(money - bet, 'lose', -bet);
       }
 
-      // Update money via Firebase
-      const newMoney = money + moneyChange;
-      const updateResult = await updateMoney(newMoney);
-      
-      if (updateResult.success) {
-        setMoneyState(newMoney);
-        setStatus(resultText);
-        
-        // Save transaction
-        const transaction = {
-          game: "GameReme",
-          moneyChange: moneyChange,
-          multiplier: multiplier,
-          playerNumber: pNum,
-          houseNumber: hNum,
-          playerDigit: pDigit,
-          houseDigit: hDigit,
-          result: moneyChange > 0 ? "win" : "lose",
-          timestamp: Date.now()
-        };
-        
-        await userService.addTransaction(playerName, transaction);
-        saveLastResult(transaction);
-      } else {
-        setStatus("❌ Error updating money");
-      }
+      setStatus(resultText);
+      saveLastResult({
+        player: pFinal,
+        house: hFinal,
+        result: resultText,
+        moneyChange: moneyChange,
+        timestamp: Date.now()
+      });
       
       setSpinning(false);
     }, 2000);
   };
 
   const resetMoney = async () => {
-    if (!confirm("Reset saldo ke 1000?")) return;
-    
-    const result = await updateMoney(1000);
-    if (result.success) {
-      setMoneyState(1000);
-      localStorage.removeItem('reme_last_results');
+    if (confirm("Reset saldo ke 1000?")) {
+      await updateMoney(1000, 'reset', 0);
+      localStorage.removeItem('gameResults');
       setLastResults([]);
-      setStatus("✅ Saldo direset ke 1000");
-    } else {
-      setStatus("❌ Error reset saldo");
+      alert("Saldo direset!");
     }
   };
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading game data...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-4 overflow-hidden">
@@ -225,7 +204,7 @@ export default function GameReme() {
         </h1>
         <button 
           onClick={resetMoney} 
-          className="ml-auto bg-white/10 backdrop-blur-sm border border-white/20 px-4 py-2 rounded-lg text-sm text-white hover:bg-white/20 transition-all"
+          className="ml-auto glass-button px-4 py-2 rounded-lg text-sm hover:bg-white/20 transition-all"
         >
           Reset Saldo
         </button>
@@ -274,7 +253,7 @@ export default function GameReme() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <p className="text-white/70 text-lg">Saldo</p>
+            <p className="text-white/70 text-lg">Saldo Global</p>
             <motion.p 
               className="text-5xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text"
               key={money}
@@ -288,7 +267,7 @@ export default function GameReme() {
 
           {/* Game Board */}
           <motion.div 
-            className="max-w-md w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-8 mb-6 z-10"
+            className="max-w-md w-full glass-lonjong rounded-3xl p-8 mb-6 z-10"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
@@ -301,7 +280,7 @@ export default function GameReme() {
                   type="number"
                   value={bet}
                   onChange={(e) => setBet(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-white/10 placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white text-lg focus:border-purple-400 transition-colors"
+                  className="w-full bg-white/10 backdrop-blur-sm placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white text-lg focus:border-purple-400 transition-colors"
                   min="1"
                   max={money}
                   disabled={spinning}
@@ -340,7 +319,6 @@ export default function GameReme() {
                 >
                   {spinning ? "🌀" : houseNumber}
                 </motion.div>
-                <p className="text-white/60 text-xs mt-1">→ {houseDigit}</p>
               </motion.div>
 
               <div className="text-center">
@@ -361,7 +339,6 @@ export default function GameReme() {
                 >
                   {spinning ? "🌀" : playerNumber}
                 </motion.div>
-                <p className="text-white/60 text-xs mt-1">→ {playerDigit}</p>
               </motion.div>
             </div>
 
@@ -383,7 +360,7 @@ export default function GameReme() {
             <motion.button
               onClick={spin}
               disabled={spinning || bet <= 0 || bet > money}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 py-4 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all duration-300"
+              className="w-full glass-button py-4 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg mt-4"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -406,7 +383,7 @@ export default function GameReme() {
           {/* Last Results */}
           {lastResults.length > 0 && (
             <motion.div 
-              className="max-w-md w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 mb-6 z-10"
+              className="max-w-md w-full glass-lonjong rounded-2xl p-6 mb-6 z-10"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -416,7 +393,7 @@ export default function GameReme() {
                 {lastResults.map((result, i) => (
                   <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">🏠{result.houseDigit} vs 🎯{result.playerDigit}</span>
+                      <span className="text-sm">🏠{result.house} vs 🎯{result.player}</span>
                     </div>
                     <div className={`text-xs px-2 py-1 rounded ${result.moneyChange > 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
                       {result.moneyChange > 0 ? `+${result.moneyChange}` : result.moneyChange}
@@ -439,23 +416,37 @@ export default function GameReme() {
           <AnimatePresence>
             {showRules && (
               <motion.div 
-                className="max-w-md w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 text-white/80 text-sm z-10"
+                className="max-w-md w-full glass-lonjong rounded-2xl p-6 text-white/80 text-sm z-10"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <h3 className="font-semibold mb-3 text-white">📋 Aturan Lengkap</h3>
-                <ul className="list-disc list-inside space-y-2">
+                <h3 className="font-semibold mb-3 text-white">📋 Aturan Singkat</h3>
+                <ul className="list-disc list-inside space-y-1">
                   <li>Angka 0-36 → jumlah digit</li>
                   <li>Jika masih 2 digit → ambil digit terakhir</li>
-                <li>Anda lebih besar dari House → menang 2x taruhan</li>
-                  <li>Anda = 0 & bukan seri → menang 3x taruhan (Jackpot!)</ animate>
+                  <li>Anda lebih besar dari House → menang 2x taruhan</li>
+                  <li>Anda = 0 & bukan seri → menang 3x taruhan (Jackpot!)</li>
                   <li>Seri atau kalah → taruhan hilang</li>
                   <li>Saldo tersimpan otomatis di cloud</li>
                 </ul>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Custom CSS */}
+          <style jsx>{`
+            .glass-lonjong {
+              background: rgba(255, 255, 255, 0.05);
+              backdrop-filter: blur(10px);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            .glass-button {
+              background: rgba(255, 255, 255, 0.1);
+              backdrop-filter: blur(10px);
+              border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+          `}</style>
         </>
       )}
     </div>
