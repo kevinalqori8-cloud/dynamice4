@@ -1,0 +1,135 @@
+.mines-game {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mines-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+}
+
+.mines-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mines-title {
+  color: white !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mines-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.difficulty-select {
+  padding: 8px 12px;
+  border: 2px solid #fff;
+  border-radius: 5px;
+  background: white;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mines-status {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.mines-board {
+  display: flex;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.board-grid {
+  display: inline-block;
+}
+
+.mines-cell {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  margin: 1px;
+  border: 2px solid #ccc !important;
+  background: #e0e0e0 !important;
+  color: #333;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.mines-cell:hover {
+  background: #d0d0d0 !important;
+  transform: scale(1.05);
+}
+
+.mines-cell.hidden {
+  background: #bdbdbd !important;
+  border: 2px outset #bdbdbd !important;
+}
+
+.mines-cell.hidden:hover {
+  background: #a8a8a8 !important;
+}
+
+.mines-cell.flagged {
+  background: #ffeb3b !important;
+  color: #f57f17;
+}
+
+.mines-cell.mine {
+  background: #f44336 !important;
+  color: white;
+  animation: explode 0.5s ease-out;
+}
+
+.mines-cell.number-1 { color: #1976d2; }
+.mines-cell.number-2 { color: #388e3c; }
+.mines-cell.number-3 { color: #f57c00; }
+.mines-cell.number-4 { color: #d32f2f; }
+.mines-cell.number-5 { color: #7b1fa2; }
+.mines-cell.number-6 { color: #00796b; }
+.mines-cell.number-7 { color: #5d4037; }
+.mines-cell.number-8 { color: #424242; }
+
+@keyframes explode {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); background: #ff5722; }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+  .mines-cell {
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    min-height: 25px !important;
+    font-size: 12px;
+  }
+  
+  .mines-header {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
