@@ -11,11 +11,11 @@ const navLinks = [
   { label: "Gallery", path: "/gallery" },
   { label: "Schedule", path: "/#Tabs" },
   { label: "Leaderboard", path: "/leaderboard" },
-  { label: "Games", path: "/game" },
+  { label: "Games", path: "/games" },
 ];
 
 export default function Navbar() {
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [query, setQuery] = useState("");
   const [hasil, setHasil] = useState([]);
@@ -79,7 +79,7 @@ export default function Navbar() {
       setOpenLogin(false);
       
       // Simpan ke Firebase dengan status online
-      await userService.updateUserData(userData.nama, {
+      await userService.saveUserData(userData.nama, {
         ...userData,
         lastLogin: new Date().toISOString(),
         isOnline: true
@@ -93,7 +93,7 @@ export default function Navbar() {
       window.dispatchEvent(new Event('loginStatusChanged'));
       
       // Redirect ke games
-      nav("/games");
+      navigate("/games");
     } catch (error) {
       console.error("Login error:", error);
       alert("❌ Login gagal: " + error.message);
@@ -104,7 +104,7 @@ export default function Navbar() {
     try {
       if (currentUser) {
         // Update status offline di Firebase
-        await userService.updateUserData(currentUser.nama, {
+        await userService.saveUserData(currentUser.nama, {
           isOnline: false,
           lastLogout: new Date().toISOString()
         });
@@ -115,7 +115,7 @@ export default function Navbar() {
       localStorage.removeItem('lastLoginTime');
       setCurrentUser(null);
       window.dispatchEvent(new Event('loginStatusChanged'));
-      nav("/");
+      navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -125,7 +125,7 @@ export default function Navbar() {
   const BrandSection = () => (
     <motion.div 
       className="flex items-center gap-3 cursor-pointer"
-      onClick={() => nav("/")}
+      onClick={() => navigate("/menu")}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
@@ -189,7 +189,7 @@ export default function Navbar() {
                 <button
                   key={s.nama}
                   onClick={() => {
-                    nav(`/portfolio/${encodeURIComponent(s.nama)}`);
+                    navigate(`/portfolio/${encodeURIComponent(s.nama)}`);
                     setQuery(""); setHasil([]);
                   }}
                   className="w-full text-left px-2 py-1 rounded hover:bg-white/10"
@@ -232,7 +232,7 @@ export default function Navbar() {
                 >
                   <motion.button
                     onClick={() => {
-                      nav(`/portfolio/${encodeURIComponent(currentUser.nama)}`);
+                      navigate(`/portfolio/${encodeURIComponent(currentUser.nama)}`);
                       setShowProfileMenu(false);
                     }}
                     className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2"
@@ -242,7 +242,7 @@ export default function Navbar() {
                   </motion.button>
                   <motion.button
                     onClick={() => {
-                      nav("/games");
+                      navigate("/games");
                       setShowProfileMenu(false);
                     }}
                     className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2"
@@ -252,7 +252,7 @@ export default function Navbar() {
                   </motion.button>
                   <motion.button
                     onClick={() => {
-                      nav("/leaderboard");
+                      navigate("/leaderboard");
                       setShowProfileMenu(false);
                     }}
                     className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2"
@@ -294,7 +294,7 @@ export default function Navbar() {
           {/* Kiri = Brand yang sudah diperbarui */}
           <motion.div 
             className="flex items-center gap-2 cursor-pointer"
-            onClick={() => nav("/")}
+            onClick={() => navigate("/menu")}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -332,7 +332,7 @@ export default function Navbar() {
                   <button
                     key={s.nama}
                     onClick={() => {
-                      nav(`/portfolio/${encodeURIComponent(s.nama)}`);
+                      navigate(`/portfolio/${encodeURIComponent(s.nama)}`);
                       setQuery(""); setHasil([]);
                     }}
                     className="w-full text-left px-2 py-1 rounded hover:bg-white/10"
@@ -348,7 +348,7 @@ export default function Navbar() {
           {currentUser ? (
             // Tampilkan menu Portfolio jika sudah login
             <motion.button
-              onClick={() => nav(`/portfolio/${encodeURIComponent(currentUser.nama)}`)}
+              onClick={() => navigate(`/portfolio/${encodeURIComponent(currentUser.nama)}`)}
               className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center"
               title={`Portfolio ${currentUser.nama}`}
               whileHover={{ scale: 1.1 }}

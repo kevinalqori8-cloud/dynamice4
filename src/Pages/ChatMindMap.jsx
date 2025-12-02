@@ -3,6 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const branches = [
+  {
+    label: "🤡 Gallery",                                     
+    path: "/gallery",
+    color: "from-purple-500 to-cyan-500",
+    description: "Gallery Boz",
+    icon: "🤡"                                          
+  },
   { 
     label: "💬 Chat Anonim", 
     path: "/chat/anonim", 
@@ -23,6 +30,13 @@ const branches = [
     color: "from-pink-500 to-rose-500",
     description: "Main & menangkan hadiah",
     icon: "🎮"
+  },
+  {
+    label: "😜 Leaderboard",
+    path: "/leaderboard",
+    color: "from-blue-500 to-purple-500",
+    description: "On Top",
+    icon: "😜"                                          
   },
 ];
 

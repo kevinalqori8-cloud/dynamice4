@@ -213,6 +213,23 @@ async getStudentData(nama) {
     return null;
   }
 },
+// Tambahkan fungsi ini ke userService.js
+
+async updateUserData(nama, updateData) {
+  try {
+    const userRef = doc(db, 'users', nama);
+    await updateDoc(userRef, {
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating user data:", error);
+    return { success: false, error: error.message };
+  }
+},
+
+// Juga tambahkan fungsi ini untuk student data
 
 async updateStudentData(nama, updateData) {
   try {
