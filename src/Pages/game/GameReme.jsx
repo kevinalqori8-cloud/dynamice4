@@ -375,7 +375,7 @@ export default function GameReme() {
             <ul className="list-disc list-inside space-y-2">
               <li>Angka 0-36 → jumlah digit</li>
               <li>Jika masih 2 digit → ambil digit terakhir</li>
-              <li>Anda > House → menang 2x taruhan</li>
+              <li>Anda lebih besar dari House → menang 2x taruhan</li>
               <li>Anda = 0 & bukan seri → menang 3x taruhan (Jackpot!)</li>
               <li>Seri atau kalah → taruhan hilang</li>
               <li>Saldo global berlaku untuk semua pemain</li>
