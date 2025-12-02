@@ -22,6 +22,40 @@ const log = (message, data) => {
 };
 
 export const userService = {
+// Get all users with validation
+async getAllUsers() {
+  try {
+    const usersRef = collection(db, 'users');
+    const snapshot = await getDocs(usersRef);
+    const users = [];
+    
+    snapshot.forEach((doc) => {
+      const userData = doc.data();
+      // Validasi data user
+      if (userData && userData.nama) {
+        users.push({ id: doc.id, ...userData });
+      }
+    });
+    
+    return users;
+  } catch (error) {
+    console.error("Error getting all users:", error);
+    return [];
+  }
+},
+
+// Helper function dengan safety check
+calculateLevel(userData) {
+  if (!userData) return 1;
+  
+  const achievements = userData.achievements?.length || 0;
+  const money = userData.money || 0;
+  const gamesPlayed = userData.totalGames || 0;
+  
+  // Formula: achievements * 2 + money/1000 + gamesPlayed * 0.5
+  return Math.max(1, Math.floor(achievements * 2 + money / 1000 + gamesPlayed * 0.5));
+},
+
 	// Tambahkan fungsi-fungsi ini ke userService.js yang sudah ada
 // Tambahkan fungsi-fungsi ini ke userService.js
 

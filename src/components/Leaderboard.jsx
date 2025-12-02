@@ -10,6 +10,7 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all, rich, games, achievements
   const [currentUser, setCurrentUser] = useState(null);
+  const [error, setError] = useState(null);
 
   // Load current user dan leaderboard data
   useEffect(() => {
@@ -18,30 +19,44 @@ export default function Leaderboard() {
   }, [filter]);
 
   const loadCurrentUser = () => {
-    const userData = localStorage.getItem('currentUser');
-    if (userData) {
-      setCurrentUser(JSON.parse(userData));
+    try {
+      const userData = localStorage.getItem('currentUser');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        setCurrentUser(parsed);
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      setCurrentUser(null);
     }
   };
 
   const loadLeaderboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Ambil semua user data dari Firebase
       const allUsers = await userService.getAllUsers();
       
-      // Filter dan sorting berdasarkan tipe
+      // Validasi dan filter data yang komplet
+      const validUsers = allUsers.filter(user => 
+        user?.nama && 
+        typeof user.nama === 'string' && 
+        user.nama.trim().length > 0
+      );
+      
+      // Sort berdasarkan tipe
       let sortedUsers = [];
       
       switch(filter) {
         case "rich":
           // Sort by money (terkaya)
-          sortedUsers = allUsers.sort((a, b) => (b.money || 0) - (a.money || 0));
+          sortedUsers = validUsers.sort((a, b) => (b.money || 0) - (a.money || 0));
           break;
         case "games":
           // Sort by total games played
-          sortedUsers = allUsers.sort((a, b) => {
+          sortedUsers = validUsers.sort((a, b) => {
             const aGames = a.totalGames || 0;
             const bGames = b.totalGames || 0;
             return bGames - aGames;
@@ -49,7 +64,7 @@ export default function Leaderboard() {
           break;
         case "achievements":
           // Sort by achievements count
-          sortedUsers = allUsers.sort((a, b) => {
+          sortedUsers = validUsers.sort((a, b) => {
             const aAch = a.achievements?.length || 0;
             const bAch = b.achievements?.length || 0;
             return bAch - aAch;
@@ -57,7 +72,7 @@ export default function Leaderboard() {
           break;
         default:
           // All - sort by level (pengalaman)
-          sortedUsers = allUsers.sort((a, b) => {
+          sortedUsers = validUsers.sort((a, b) => {
             const aLevel = calculateLevel(a);
             const bLevel = calculateLevel(b);
             return bLevel - aLevel;
@@ -67,18 +82,32 @@ export default function Leaderboard() {
       setUsers(sortedUsers);
     } catch (error) {
       console.error("Error loading leaderboard:", error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const calculateLevel = (user) => {
+    if (!user) return 1;
     const achievements = user.achievements?.length || 0;
     const money = user.money || 0;
     const gamesPlayed = user.totalGames || 0;
     
     // Formula level: achievements * 2 + money/1000 + gamesPlayed * 0.5
-    return Math.floor(achievements * 2 + money / 1000 + gamesPlayed * 0.5);
+    return Math.max(1, Math.floor(achievements * 2 + money / 1000 + gamesPlayed * 0.5));
+  };
+
+  // Safety function untuk nama
+  const getDisplayName = (user) => {
+    if (!user?.nama || typeof user.nama !== 'string') return '?';
+    return user.nama.charAt(0).toUpperCase();
+  };
+
+  const getDisplayInitial = (user) => {
+    if (!user?.nama || typeof user.nama !== 'string') return '?';
+    const nameParts = user.nama.split(' ');
+    return nameParts[0]?.charAt(0)?.toUpperCase() || '?';
   };
 
   const getRankIcon = (rank) => {
@@ -95,11 +124,42 @@ export default function Leaderboard() {
     return "from-purple-500 to-pink-500";
   };
 
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center p-8">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold mb-4">Error Loading Leaderboard</h2>
+          <p className="text-white/70 mb-6">{error}</p>
+          <div className="flex gap-4 justify-center">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-purple-500 hover:bg-purple-600 px-6 py-2 rounded-lg"
+            >
+              Reload
+            </button>
+            <button 
+              onClick={() => nav('/games')} 
+              className="bg-white/10 hover:bg-white/20 px-6 py-2 rounded-lg"
+            >
+              Back to Games
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-center">
-          <div className="animate-spin w-12 h-12 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <motion.div 
+            className="w-12 h-12 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
           <p>Loading leaderboard...</p>
         </div>
       </div>
@@ -170,7 +230,7 @@ export default function Leaderboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-lg font-bold">
-                  {currentUser.nama.charAt(0).toUpperCase()}
+                  {getDisplayInitial(currentUser)}
                 </div>
                 <div>
                   <p className="font-medium">{currentUser.nama}</p>
@@ -181,7 +241,7 @@ export default function Leaderboard() {
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  #{users.findIndex(u => u.nama === currentUser.nama) + 1}
+                  #{Math.max(1, users.findIndex(u => u.nama === currentUser.nama) + 1)}
                 </p>
                 <p className="text-sm text-white/60">dari {users.length}</p>
               </div>
@@ -199,7 +259,7 @@ export default function Leaderboard() {
       >
         <div className="max-w-4xl mx-auto space-y-4">
           <AnimatePresence mode="wait">
-            {users.map((user, index) => {
+            {users.length > 0 ? users.map((user, index) => {
               const rank = index + 1;
               const level = calculateLevel(user);
               const isCurrentUser = currentUser?.nama === user.nama;
@@ -230,7 +290,7 @@ export default function Leaderboard() {
                     {/* Avatar */}
                     <div className="relative">
                       <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-2xl font-bold text-white">
-                        {user.nama.charAt(0).toUpperCase()}
+                        {getDisplayName(user)}
                       </div>
                       {rank <= 3 && (
                         <div className="absolute -bottom-1 -right-1 text-2xl">
@@ -283,23 +343,43 @@ export default function Leaderboard() {
                   </motion.button>
                 </motion.div>
               );
-            })}
+            }) : (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">🏆</div>
+                <h3 className="text-xl font-semibold mb-2">Belum ada data</h3>
+                <p className="text-white/60">Main game untuk masuk leaderboard!</p>
+                <motion.button
+                  onClick={() => nav('/games')}
+                  className="mt-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-6 py-2 rounded-lg"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Main Sekarang
+                </motion.button>
+              </div>
+            )}
           </AnimatePresence>
-
-          {users.length === 0 && (
-            <div className="text-center py-20">
-              <div className="text-6xl mb-4">🏆</div>
-              <h3 className="text-xl font-semibold mb-2">Belum ada data</h3>
-              <p className="text-white/60">Main game untuk masuk leaderboard!</p>
-            </div>
-          )}
         </div>
       </motion.div>
 
       {/* Background Animasi */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <motion.div 
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            opacity: [0.1, 0.2, 0.1]
+          }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
+        <motion.div 
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1.2, 1, 1.2],
+            opacity: [0.2, 0.1, 0.2]
+          }}
+          transition={{ duration: 4, repeat: Infinity, delay: 2 }}
+        />
       </div>
     </div>
   );

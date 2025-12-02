@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import Home from "./Pages/Home";
-import Gallery from "./Pages/Gallery";
+import Gallery from "./components/Gallery";
 import Tabs from "./Pages/Tabs";
 import Footer from "./Pages/Footer";
 import ChatPage from "./Pages/ChatPage";
@@ -27,7 +27,6 @@ function Layout() {
     <>
       <Navbar />
       <Home />
-      <Gallery />
       <Tabs />
       <SuggestionBox />
       <Footer />
@@ -42,6 +41,7 @@ export default function App() {
       <Route path="/" element={<Layout />} />
       <Route path="/menu" element={<ChatMindMap />} />
       <Route path="/chat" element={<ChatMindMap />} />
+	<Route path="/gallery" element={<Gallery />} />
       <Route path="/chat/anonim" element={<ChatAnonimLocalPage />} />
       <Route path="/suggestion" element={<SuggestionPage />} />
       

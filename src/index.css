@@ -223,6 +223,47 @@ body {
 	padding-top: 2em;
 	padding-bottom: 2em;
 }
+/* Tambahkan di file CSS utama */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Glass card effect */
+
+/* Smooth transitions */
+.group-hover\:scale-110 {
+  transform: scale(1.1);
+}
+
+.group:hover .group-hover\:scale-110 {
+  transform: scale(1.1);
+}
+
+.group-hover\:opacity-100 {
+  opacity: 1;
+}
+
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+
+.group-hover\:border-white\/40 {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.group:hover .group-hover\:border-white\/40 {
+  border-color: rgba(255, 255, 255, 0.4);
+}
 
 /* index.css */
 .glass-lonjong {

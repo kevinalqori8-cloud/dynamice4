@@ -12,11 +12,11 @@ export default function BoxTextAnonim() {
         onClick={() => setOpen(true)}
         className="glass-card rounded-2xl p-4 w-40 cursor-pointer hover:scale-105 transition-transform"
       >
-        <div className="flex items-center justify-between">
-          <img src="/paper-plane.png" alt="" className="w-6 h-6" />
+        <div className="flex justify-between">
+          <img src="/paper-plane.png" alt="" className="w-auto h-6" />
           <img src="/next.png" alt="" className="w-3 h-3" />
         </div>
-        <h1 className="text-white text-left font-semibold mt-3">Text Anonim</h1>
+        <h1 className="text-white text-left font-semibold mt-5 pr-0">Text Anonim</h1>
       </div>
 
       {/* ======= MODAL GLASS ======= */}

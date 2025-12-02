@@ -3,14 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { daftarSiswa } from "../data/siswa";
 import LoginPopup from "./LoginPopup";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { userService } from "../service/firebaseService";
 
 const navLinks = [
   { label: "Home", path: "/" },
-  { label: "Gallery", path: "/#Gallery" },
+  { label: "Gallery", path: "/gallery" },
   { label: "Schedule", path: "/#Tabs" },
-  { label: "Games", path: "/games" },
+  { label: "Leaderboard", path: "/leaderboard" },
+  { label: "Games", path: "/game" },
 ];
 
 export default function Navbar() {
