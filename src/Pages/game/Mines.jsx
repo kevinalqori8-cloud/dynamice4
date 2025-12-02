@@ -31,7 +31,7 @@ export default function Mines() {
   const bombCount = Math.max(1, Math.min(5, Math.floor(bet / 50)));
   // Tambahkan function resetMoney
 const resetMoney = async () => {
-  if (!confirm("Reset saldo ke 1000?")) return;
+  if if (!confirm("Reset saldo ke 1000?")) return;
   
   const result = await updateMoney(1000);
   if (result.success) {
@@ -324,12 +324,12 @@ const resetMoney = async () => {
                 <p className="text-white/60">Bombs</p>
                 <p className="text-red-400 font-semibold">{bombCount}</p>
               </div>
-	<button
-  onClick={resetMoney}
-  className="bg-white/10 backdrop-blur-sm border border-white/20 px-3 p>
->
-  Reset Uang
-</button>
+              <button
+                onClick={resetMoney}
+                className="bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-1 rounded-lg text-sm text-white hover:bg-white/20 transition-colors"
+              >
+                Reset Uang
+              </button>
             </div>
           </div>
         </>
