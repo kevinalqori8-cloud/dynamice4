@@ -45,7 +45,7 @@ export default function App() {
 	<Route path="/portfolio/:nama" element={<PortfolioPage />} />
 	<Route path="/game/reme" element={<GameReme />} />
 	<Route path="/game/mines" element={<Mines />} />
-	<Route path="/game" element={<game />} />
+	<Route path="/game" element={<Game />} />
     </Routes>
   );
 }

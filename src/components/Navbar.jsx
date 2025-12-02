@@ -107,7 +107,7 @@ export default function Navbar() {
                   <button
                     key={s.nama}
                     onClick={() => {
-                      nav(`/profile/${encodeURIComponent(s.nama)}`);
+                      nav(`/portfolio/${encodeURIComponent(s.nama)}`);
                       setQuery(""); setHasil([]);
                     }}
                     className="w-full text-left px-2 py-1 rounded hover:bg-white/10"
