@@ -38,6 +38,7 @@ function Layout() {
 
 export default function App() {
   return (
+	<Analytics>
 	<AuthProvider>
     <Routes>
       <Route path="/" element={<Layout />} />
@@ -58,5 +59,6 @@ export default function App() {
 	<Route path="/leaderboard" element={<Leaderboard />} />
     </Routes>
 	</AuthProvider>
+	</Analytics>
   );
 }

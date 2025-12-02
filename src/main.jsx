@@ -28,7 +28,7 @@ ReactDOM.createRoot(root).render(
       <App />
       </ErrorBoundary>
     </BrowserRouter>
-	</Analytics>>
+	</Analytics>
   </React.StrictMode>
 );
 
