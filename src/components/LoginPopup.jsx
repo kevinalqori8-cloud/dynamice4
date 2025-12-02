@@ -1,33 +1,81 @@
 import React, { useState } from "react";
-import { daftarSiswa } from "../data/siswa";
+import { motion } from "framer-motion";
+import { userService } from "../service/firebaseService";
 
-export default function LoginPopup({ onClose }) {
+export default function LoginPopup({ onClose, onLogin }) {
   const [nama, setNama] = useState("");
-  const [pass, setPass] = useState("");
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const login = () => {
-    const siswa = daftarSiswa.find(
-      (s) => s.nama === nama.trim() && s.password === pass.trim()
-    );
-    if (!siswa) return setError("Nama atau password salah");
-    localStorage.setItem("user", JSON.stringify(siswa));
-    onClose();
-    window.location.reload(); // agar navbar tau
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!nama.trim()) return;
+
+    setLoading(true);
+    
+    try {
+      // Create or get user
+      const userData = {
+        nama: nama.trim(),
+        money: 1000,
+        achievements: [],
+        joinDate: new Date().toISOString()
+      };
+
+      await userService.saveUserData(nama.trim(), userData);
+      onLogin(userData);
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Login gagal: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-      <div className="relative w-full max-w-sm rounded-2xl glass-lonjong p-6" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white">✕</button>
-        <h2 className="text-white font-bold mb-4">Login Siswa</h2>
-        <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Nama lengkap" className="w-full bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg mb-3 outline-none border border-white/20" />
-        <input value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Password (default: 01072010)" type="password" className="w-full bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg mb-3 outline-none border border-white/20" />
-        {error && <div className="text-red-400 text-xs mb-2">{error}</div>}
-        <button onClick={login} className="w-full glass-button py-2 rounded-lg">Masuk</button>
-      </div>
-    </div>
+    <motion.div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div 
+        className="bg-white/95 backdrop-blur-md rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+        initial={{ scale: 0.9, y: 50 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 50 }}
+      >
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Login</h2>
+        
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">Nama Anda</label>
+            <input
+              type="text"
+              value={nama}
+              onChange={(e) => setNama(e.target.value)}
+              placeholder="Masukkan nama Anda"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              required
+            />
+          </div>
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50"
+          >
+            {loading ? "Loading..." : "Login"}
+          </button>
+        </form>
+
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+        >
+          ✕
+        </button>
+      </motion.div>
+    </motion.div>
   );
 }
 

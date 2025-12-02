@@ -18,6 +18,7 @@ import Mines from "./Pages/game/Mines";
 import GameReme from "./Pages/game/GameReme";
 import Game from "./Pages/Game";
 import LuckyWheel from "./Pages/game/LuckyWheel"; // Game baru
+import { AuthProvider } from "./context/AuthContext";
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
@@ -35,6 +36,7 @@ function Layout() {
 
 export default function App() {
   return (
+	<AuthProvider>
     <Routes>
       <Route path="/" element={<Layout />} />
       <Route path="/menu" element={<ChatMindMap />} />
@@ -52,5 +54,6 @@ export default function App() {
       <Route path="/game/luckywheel" element={<LuckyWheel />} /> {/* Game baru */}
       <Route path="/game" element={<Game />} />
     </Routes>
+	</AuthProvider>
   );
 }

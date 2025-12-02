@@ -29,6 +29,24 @@ export default function Mines() {
   }, [userData]);
 
   const bombCount = Math.max(1, Math.min(5, Math.floor(bet / 50)));
+  // Tambahkan function resetMoney
+const resetMoney = async () => {
+  if (!confirm("Reset saldo ke 1000?")) return;
+  
+  const result = await updateMoney(1000);
+  if (result.success) {
+    setMoneyState(1000);
+    localStorage.removeItem('mines_game_stats');
+    setGamesPlayed(0);
+    setGamesWon(0);
+    setBestMultiplier(1);
+    setStatus("✅ Saldo direset ke 1000");
+    // Reset game juga
+    initGrid();
+  } else {
+    setStatus("❌ Error reset saldo");
+  }
+};
 
   const initGrid = () => {
     const arr = Array(TOTAL_BOXES).fill(null);
@@ -306,6 +324,12 @@ export default function Mines() {
                 <p className="text-white/60">Bombs</p>
                 <p className="text-red-400 font-semibold">{bombCount}</p>
               </div>
+	<button
+  onClick={resetMoney}
+  className="bg-white/10 backdrop-blur-sm border border-white/20 px-3 p>
+>
+  Reset Uang
+</button>
             </div>
           </div>
         </>

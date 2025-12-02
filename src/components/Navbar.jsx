@@ -1,24 +1,24 @@
-// src/components/Navbar.jsx
-// src/components/Navbar.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { daftarSiswa } from "../data/siswa"; // daftar nama saja
-import LoginPopup from "./LoginPopup";       // pop-up login
-import AOS from "aos";
-// src/components/Navbar.jsx
-
+import { useAuth } from "../context/AuthContext";
+import { daftarSiswa } from "../data/siswa";
+import LoginPopup from "./LoginPopup";
+import { motion } from "framer-motion";
 
 const navLinks = [
   { label: "Home", path: "/" },
   { label: "Gallery", path: "/#Gallery" },
   { label: "Schedule", path: "/#Tabs" },
+  { label: "Games", path: "/games" },
 ];
 
 export default function Navbar() {
   const nav = useNavigate();
-  const [query, setQuery]   = useState("");
-  const [hasil, setHasil]   = useState([]);
+  const { user, logout } = useAuth();
+  const [query, setQuery] = useState("");
+  const [hasil, setHasil] = useState([]);
   const [openLogin, setOpenLogin] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const cari = (e) => {
     const q = e.target.value;
@@ -27,7 +27,19 @@ export default function Navbar() {
     const filter = daftarSiswa.filter((s) =>
       s.nama.toLowerCase().includes(q.toLowerCase())
     );
-    setHasil(filter.slice(0, 5)); // max 5
+    setHasil(filter.slice(0, 5));
+  };
+
+  const handleLogin = (userData) => {
+    // Login logic here
+    setOpenLogin(false);
+    // Redirect to games or refresh
+    window.location.reload();
+  };
+
+  const handleLogout = () => {
+    logout();
+    window.location.reload();
   };
 
   return (
@@ -67,13 +79,63 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Kanan = Login */}
-        <button
-          onClick={() => setOpenLogin(true)}
-          className="glass-button px-4 py-2 rounded-full text-sm"
-        >
-          Login
-        </button>
+        {/* Kanan = Login/Profile */}
+        {user ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="flex items-center gap-2 glass-button px-4 py-2 rounded-full text-sm"
+            >
+              <img src="/user.svg" alt="User" className="w-5 h-5" />
+              <span className="hidden sm:inline">{user.nama}</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Profile Dropdown */}
+            {showProfileMenu && (
+              <motion.div 
+                className="absolute right-0 top-full mt-2 w-48 rounded-lg glass-card p-2 space-y-1 text-sm text-white z-50"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <button
+                  onClick={() => {
+                    nav(`/profile/${encodeURIComponent(user.nama)}`);
+                    setShowProfileMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2"
+                >
+                  <span>👤</span> Profil
+                </button>
+                <button
+                  onClick={() => {
+                    nav("/games");
+                    setShowProfileMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2"
+                >
+                  <span>🎮</span> Games
+                </button>
+                <hr className="border-white/20" />
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2 text-red-400"
+                >
+                  <span>🚪</span> Logout
+                </button>
+              </motion.div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setOpenLogin(true)}
+            className="glass-button px-4 py-2 rounded-full text-sm"
+          >
+            Login
+          </button>
+        )}
       </header>
 
       {/* ======= MOBILE ======= */}
@@ -107,7 +169,7 @@ export default function Navbar() {
                   <button
                     key={s.nama}
                     onClick={() => {
-                      nav(`/portfolio/${encodeURIComponent(s.nama)}`);
+                      nav(`/profile/${encodeURIComponent(s.nama)}`);
                       setQuery(""); setHasil([]);
                     }}
                     className="w-full text-left px-2 py-1 rounded hover:bg-white/10"
@@ -119,18 +181,29 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Kanan = Login */}
-          <button
-            onClick={() => setOpenLogin(true)}
-            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
-          >
-            <img src="/user.svg" alt="User" className="w-5 h-5" />
-          </button>
+          {/* Kanan = Login/Profile */}
+          {user ? (
+            <button
+              onClick={() => nav(`/profile/${encodeURIComponent(user.nama)}`)}
+              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
+            >
+              <span className="text-xs font-bold text-white">
+                {user.nama.charAt(0).toUpperCase()}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setOpenLogin(true)}
+              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
+            >
+              <img src="/user.svg" alt="User" className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </header>
 
       {/* Pop-up Login */}
-      {openLogin && <LoginPopup onClose={() => setOpenLogin(false)} />}
+      {openLogin && <LoginPopup onClose={() => setOpenLogin(false)} onLogin={handleLogin} />}
     </>
   );
 }

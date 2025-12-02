@@ -40,6 +40,50 @@ const branches = [
   },
 ];
 
+// Tambahkan ParticleSystem component yang sebelumnya tidak ada
+const ParticleSystem = ({ color, isActive }) => {
+  const particles = Array.from({ length: 15 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 2 + 1,
+    delay: Math.random() * 3,
+  }));
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <AnimatePresence>
+        {isActive && particles.map((particle) => (
+          <motion.div
+            key={particle.id}
+            className="absolute rounded-full"
+            style={{
+              backgroundColor: color,
+              width: particle.size,
+              height: particle.size,
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ 
+              opacity: [0, 1, 0],
+              scale: [0, 1, 0],
+              y: [-30, 30],
+            }}
+            transition={{
+              duration: 4,
+              delay: particle.delay,
+              repeat: Infinity,
+              repeatDelay: Math.random() * 2,
+            }}
+          />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+
 // Thumbnail Component dengan 3D effect
 const GameThumbnail = ({ src, alt, isHovered }) => {
   const [imageError, setImageError] = useState(false);
