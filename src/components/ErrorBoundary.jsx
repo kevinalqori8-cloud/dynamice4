@@ -92,7 +92,7 @@ class ErrorBoundary extends React.Component {
   };
 
   handlePasswordSubmit = () => {
-    const { passwordInput } = this    const { passwordInput } = this.state;
+    const { passwordInput } = this.state;
     if (passwordInput === "DEV2024") {
       this.setState({ 
         showSecret: true, 
