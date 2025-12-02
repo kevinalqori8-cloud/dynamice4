@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { daftarSiswa } from "../data/siswa";
-import { db } from "../../firebase";
+import { db } from "../firebase";
 import { ref, get, set, push } from "firebase/database";
 
 const defaultPict = "/AnonimUser.png";
