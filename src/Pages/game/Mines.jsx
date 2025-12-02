@@ -21,7 +21,7 @@ export default function Mines() {
   const [gameOver, setGameOver] = useState(false);
   const [status, setStatus] = useState("");
   const [playerName, setPlayerName] = useState("");
-  const [money, setMoney] = useState(1000);
+  const [money] = useState(1000);
 
   // FIXED: Simplified money management
   const getMoney = () => {
