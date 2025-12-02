@@ -11,7 +11,7 @@ const navLinks = [
   { label: "Gallery", path: "/gallery" },
   { label: "Schedule", path: "/#Tabs" },
   { label: "Leaderboard", path: "/leaderboard" },
-  { label: "Games", path: "/games" },
+  { label: "Games", path: "/game" },
 ];
 
 export default function Navbar() {

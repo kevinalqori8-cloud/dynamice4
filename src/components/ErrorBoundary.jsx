@@ -15,9 +15,11 @@ class ErrorBoundary extends React.Component {
       showSecret: false,
       passwordInput: "",
       passwordVisible: false,
-      isLoading: true, // Tambahkan state loading
-      progress: 0, // Progress bar
-      showPasswordMenu: false // Menu untuk unlock error
+      isLoading: true,
+      progress: 0,
+      showPasswordMenu: false,
+      // Tambahkan state untuk cek fungsi
+      isFunctionValid: true
     };
   }
 
@@ -26,13 +28,18 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    this.setState({
-      error: error,
-      errorInfo: errorInfo
-    });
-    
     console.error('Error caught by boundary:', error);
     console.error('Error info:', errorInfo);
+    
+    // Validasi error object
+    const safeError = error || new Error("Unknown error");
+    const safeErrorInfo = errorInfo || { componentStack: "No stack trace available" };
+    
+    this.setState({
+      error: safeError,
+      errorInfo: safeErrorInfo,
+      isLoading: false // Stop loading saat error
+    });
   }
 
   componentDidMount() {
@@ -47,7 +54,11 @@ class ErrorBoundary extends React.Component {
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
-        this.setState({ isLoading: false });
+        
+        // Cek apakah ada error setelah loading
+        if (this.state.hasError) {
+          this.setState({ isLoading: false });
+        }
       }
       this.setState({ progress });
     }, 200);
@@ -58,8 +69,13 @@ class ErrorBoundary extends React.Component {
       hasError: false, 
       error: null, 
       errorInfo: null,
-      showPasswordMenu: false
+      showPasswordMenu: false,
+      isLoading: true,
+      progress: 0
     });
+    
+    // Restart loading simulation
+    this.simulateLoading();
   };
 
   toggleDetails = () => {
@@ -68,34 +84,77 @@ class ErrorBoundary extends React.Component {
 
   handlePasswordSubmit = () => {
     const { passwordInput } = this.state;
-    if (passwordInput === "DEV2024") { // Password untuk unlock error menu
+    if (passwordInput === "DEV2024") {
       this.setState({ 
         showSecret: true, 
         showPasswordMenu: false,
         passwordInput: ""
       });
-      // Tampilkan error di console untuk developer
-      console.log('=== DEVELOPER ERROR UNLOCKED ===');
-      console.log('Error:', this.state.error?.toString());
-      console.log('Stack:', this.state.errorInfo?.componentStack);
-      console.log('=================================');
+      
+      // Tampilkan error dengan aman
+      this.displayErrorSafely();
     } else {
       alert("❌ Password salah! Hubungi developer.");
       this.setState({ passwordInput: "" });
     }
   };
 
-  // Secret area click handler
+  displayErrorSafely = () => {
+    try {
+      const { error, errorInfo } = this.state;
+      
+      console.log('=== DEVELOPER ERROR UNLOCKED ===');
+      console.log('Error:', error?.toString?.() || 'Unknown error');
+      console.log('Stack:', errorInfo?.componentStack || 'No stack trace');
+      console.log('=================================');
+      
+      // Tampilkan notifikasi
+      this.showDeveloperNotification();
+    } catch (displayError) {
+      console.error('Error displaying error:', displayError);
+    }
+  };
+
+  showDeveloperNotification = () => {
+    // Buat element notifikasi
+    const notification = document.createElement('div');
+    notification.className = 'dev-notification';
+    notification.textContent = '🔓 Developer mode unlocked! Check console for details.';
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  };
+
+  // Secret area click handler dengan safety check
   handleSecretClick = () => {
-    if (this.state.hasError) {
+    if (this.state.hasError && !this.state.showPasswordMenu) {
       this.setState({ showPasswordMenu: true });
     }
   };
 
-  // Secret button (invisible area)
-  showSecretError = () => {
-    if (this.state.hasError && !this.state.showPasswordMenu) {
-      this.setState({ showPasswordMenu: true });
+  // Fungsi untuk handle error dengan aman
+  safeToString = (obj) => {
+    try {
+      if (obj === null || obj === undefined) return "Unknown error";
+      if (typeof obj.toString === 'function') return obj.toString();
+      if (typeof obj.message === 'string') return obj.message;
+      return JSON.stringify(obj);
+    } catch (e) {
+      return "Error displaying error details";
+    }
+  };
+
+  // Fungsi untuk handle stack trace dengan aman
+  safeGetStack = (errorInfo) => {
+    try {
+      if (!errorInfo) return "No stack trace available";
+      if (typeof errorInfo.componentStack === 'string') return errorInfo.componentStack;
+      if (typeof errorInfo.stack === 'string') return errorInfo.stack;
+      return "Stack trace not available";
+    } catch (e) {
+      return "Error reading stack trace";
     }
   };
 
@@ -207,6 +266,17 @@ class ErrorBoundary extends React.Component {
                   />
                 </motion.div>
 
+                {/* Secret Unlock Area */}
+                <motion.div
+                  className="mb-6 cursor-pointer"
+                  onClick={this.handleSecretClick}
+                  whileHover={{ scale: 1.02 }}
+                  title="Area rahasia - klik untuk unlock menu error"
+                >
+                  <div className="w-full h-2 bg-white/5 rounded-full mb-2"></div>
+                  <p className="text-xs text-white/40">Area developer - klik untuk unlock</p>
+                </motion.div>
+
                 <motion.p 
                   className="text-white/60 text-sm"
                   initial={{ opacity: 0 }}
@@ -251,7 +321,7 @@ class ErrorBoundary extends React.Component {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  Web Loading ...
+                  System Error Detected
                 </motion.h2>
                 
                 <motion.p 
@@ -260,19 +330,8 @@ class ErrorBoundary extends React.Component {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  Loading Pagee
+                  Terdeteksi masalah dalam sistem. Jangan khawatir, kami sedang menanganinya.
                 </motion.p>
-
-                {/* Hidden Password Unlock Area */}
-                <motion.div
-                  className="mb-6 cursor-pointer"
-                  onClick={this.showSecretError}
-                  whileHover={{ scale: 1.02 }}
-                  title="Area rahasia - klik untuk unlock menu error"
-                >
-                  <div className="w-full h-2 bg-white/5 rounded-full mb-2"></div>
-                  <p className="text-xs text-white/40">Area developer - klik untuk unlock</p>
-                </motion.div>
 
                 {/* Password Unlock Menu */}
                 <AnimatePresence>
@@ -393,13 +452,13 @@ class ErrorBoundary extends React.Component {
                             🔍 Developer Error Details:
                           </Typography>
                           <Typography component="div" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.8)' }}>
-                            <strong>🚨 Error:</strong> {this.state.error.toString()}
+                            <strong>🚨 Error:</strong> {this.safeToString(error)}
                           </Typography>
-                          {this.state.errorInfo && (
+                          {errorInfo && (
                             <Typography component="div" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                               <strong>📍 Stack Trace:</strong>
                               <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.7rem', mt: 1 }}>
-                                {this.state.errorInfo.componentStack}
+                                {this.safeGetStack(errorInfo)}
                               </pre>
                             </Typography>
                           )}
