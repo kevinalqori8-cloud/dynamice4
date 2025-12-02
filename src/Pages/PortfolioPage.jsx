@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { daftarSiswa } from "../data/siswa";
+import { useUserData, useTransactions } from '../hooks/useFirebaseData';
+import { userService } from '../service/firebaseService';
 
-const defaultPict = "/AnononimUser.png";
+const defaultPict = "/AnonimUser.png";
 
 export default function PortfolioPage() {
   const { nama } = useParams();
   const nav = useNavigate();
   
-  // FIXED: Better error handling and null checking
+  // FIXED: Better error handling
   if (!nama) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-center">
           <h2 className="text-2xl font-bold mb-4">❌ Parameter tidak valid</h2>
-          <button 
-            onClick={() => nav(-1)} 
-            className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={() => nav(-1)} className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg">
             ← Kembali
           </button>
         </div>
@@ -26,29 +25,22 @@ export default function PortfolioPage() {
     );
   }
 
-  // FIXED: Safer decode with try-catch
   let decodedNama;
   try {
     decodedNama = decodeURIComponent(nama);
   } catch (error) {
-    console.error("Error decoding nama:", error);
     decodedNama = nama;
   }
 
   const base = daftarSiswa.find((s) => s.nama === decodedNama);
   
   if (!base) {
-    console.log("Base not found for nama:", decodedNama);
-    console.log("Available names:", daftarSiswa.map(s => s.nama));
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-center p-6">
           <h2 className="text-2xl font-bold mb-4">❌ Data siswa tidak ditemukan</h2>
           <p className="text-white/70 mb-4">Nama: {decodedNama}</p>
-          <button 
-            onClick={() => nav(-1)} 
-            className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg"
-          >
+          <button onClick={() => nav(-1)} className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg">
             ← Kembali
           </button>
         </div>
@@ -56,112 +48,81 @@ export default function PortfolioPage() {
     );
   }
 
-  // State management
+  // FIXED: Gunakan Firebase hooks
+  const { data: userData, loading, error, updateData, updateMoney } = useUserData(base.nama);
+  const { transactions, loading: transactionsLoading, addTransaction } = useTransactions(base.nama);
+  
+  const [edit, setEdit] = useState(false);
   const [data, setData] = useState(() => {
-    try {
-      const raw = localStorage.getItem(`portfolio_${base.nama}`);
-      return raw
-        ? JSON.parse(raw)
-        : {
-            nama: base.nama,
-            jurusan: base.jurusan,
-            foto: defaultPict,
-            bio: "Halo! Saya siswa kelas XE-4 yang aktif dan kreatif.",
-            wa: "",
-            ig: "",
-            tiktok: "",
-            showWa: true,
-            showIg: true,
-            showTiktok: true,
-            lencana: base.lencana || [],
-            oldPass: "",
-            newPass: "",
-            achievements: [],
-            joinDate: new Date().toISOString(),
-          };
-    } catch (error) {
-      console.error("Error parsing localStorage data:", error);
-      return {
-        nama: base.nama,
-        jurusan: base.jurusan,
-        foto: defaultPict,
-        bio: "Halo! Saya siswa kelas XE-4 yang aktif dan kreatif.",
-        wa: "",
-        ig: "",
-        tiktok: "",
-        showWa: true,
-        showIg: true,
-        showTiktok: true,
-        lencana: base.lencana || [],
-        oldPass: "",
-        newPass: "",
-        achievements: [],
-        joinDate: new Date().toISOString(),
-      };
-    }
+    const raw = localStorage.getItem(`portfolio_${base.nama}`);
+    return raw ? JSON.parse(raw) : {
+      nama: base.nama,
+      jurusan: base.jurusan,
+      foto: defaultPict,
+      bio: "Halo! Saya siswa kelas XE-4 yang aktif dan kreatif.",
+      wa: "",
+      ig: "",
+      tiktok: "",
+      showWa: true,
+      showIg: true,
+      showTiktok: true,
+      lencana: base.lencana || [],
+      oldPass: "",
+      newPass: "",
+      achievements: [],
+      joinDate: new Date().toISOString(),
+    };
   });
 
-  const [edit, setEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile');
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isOwner = user.nama === base.nama;
 
-  // FIXED: Remove Firebase dependencies yang menyebabkan error
-  // Gunakan localStorage untuk semua data
-  const [money, setMoney] = useState(() => {
-    return parseInt(localStorage.getItem('globalMoney') || '1000');
-  });
-
-  const [transactions, setTransactions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('transactions');
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      console.error("Error parsing transactions:", error);
-      return [];
-    }
-  });
-
+  // FIXED: Sync local data dengan Firebase
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      console.log("Portfolio loaded for:", base.nama);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [base.nama]);
-
-  const save = () => {
-    try {
-      const { oldPass, newPass, ...clean } = data;
-      localStorage.setItem(`portfolio_${base.nama}`, JSON.stringify(clean));
-      setEdit(false);
-      showNotification("Profil berhasil disimpan!", "success");
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      showNotification("Gagal menyimpan profil!", "error");
+    if (userData) {
+      // Update local state dengan Firebase data
+      setData(prev => ({
+        ...prev,
+        money: userData.money || 1000,
+        achievements: userData.achievements || []
+      }));
     }
-  };
+  }, [userData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setData((d) => ({ ...d, [name]: type === "checkbox" ? checked : value }));
   };
 
-  const updatePassword = () => {
-    if (data.oldPass !== base.password) {
-      showNotification("Password lama salah!", "error");
-      return;
+  const save = async () => {
+    try {
+      // Save ke localStorage
+      const { oldPass, newPass, ...clean } = data;
+      localStorage.setItem(`portfolio_${base.nama}`, JSON.stringify(clean));
+      
+      // Save ke Firebase
+      await updateData({
+        nama: data.nama,
+        jurusan: data.jurusan,
+        foto: data.foto,
+        bio: data.bio,
+        wa: data.wa,
+        ig: data.ig,
+        tiktok: data.tiktok,
+        showWa: data.showWa,
+        showIg: data.showIg,
+        showTiktok: data.showTiktok,
+        lencana: data.lencana,
+        achievements: data.achievements,
+        joinDate: data.joinDate
+      });
+      
+      setEdit(false);
+      showNotification("Profil berhasil disimpan!", "success");
+    } catch (error) {
+      console.error("Error saving:", error);
+      showNotification("Gagal menyimpan!", "error");
     }
-    if (!data.newPass) {
-      showNotification("Password baru kosong!", "error");
-      return;
-    }
-    
-    const updatedBase = { ...base, password: data.newPass };
-    localStorage.setItem(`portfolio_${base.nama}`, JSON.stringify({ ...data, password: data.newPass }));
-    localStorage.setItem("user", JSON.stringify(updatedBase));
-    showNotification("Password berhasil diubah!", "success");
-    window.location.reload();
   };
 
   const showNotification = (message, type = 'info') => {
@@ -179,17 +140,13 @@ export default function PortfolioPage() {
   };
 
   const formatDate = (timestamp) => {
-    try {
-      return new Date(timestamp).toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      return "Invalid Date";
-    }
+    return new Date(timestamp).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const calculateLevel = () => {
@@ -202,14 +159,35 @@ export default function PortfolioPage() {
     return (currentExp % 2) * 50;
   };
 
+  // FIXED: Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // FIXED: Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <h2 className="text-2xl font-bold mb-4">❌ Error Loading Profile</h2>
+          <p className="text-white/70 mb-4">{error}</p>
+          <button onClick={() => window.location.reload()} className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg">
+            Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
-
       {/* Header */}
       <motion.header 
         className="flex items-center gap-4 p-6 z-10 relative"
@@ -247,7 +225,7 @@ export default function PortfolioPage() {
         transition={{ duration: 0.6, delay: 0.2 }}
       >
         <div className="max-w-4xl mx-auto">
-          {/* Hero Card */}
+          {/* Hero Card dengan Firebase Data */}
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-8 mb-6">
             <div className="flex flex-col lg:flex-row items-center gap-8">
               {/* Photo Section */}
@@ -269,52 +247,19 @@ export default function PortfolioPage() {
                     🏆
                   </div>
                 </motion.div>
-                
-                {isOwner && edit && (
-                  <input
-                    name="foto"
-                    value={data.foto}
-                    onChange={handleChange}
-                    placeholder="URL foto"
-                    className="w-full mt-4 bg-white/10 backdrop-blur-sm placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white focus:border-purple-400 transition-colors"
-                  />
-                )}
               </div>
 
               {/* Info Section */}
               <div className="flex-1 text-center lg:text-left">
-                <motion.p 
-                  className="text-lg text-white/80"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                >
-                  Hi, I'm
-                </motion.p>
-                <motion.h2 
-                  className="text-5xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text mt-2"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                >
+                <h2 className="text-5xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">
                   {data.nama}
-                </motion.h2>
-                <motion.p 
-                  className="text-2xl text-white/70 mt-1"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                >
+                </h2>
+                <p className="text-2xl text-white/70 mt-1">
                   {data.jurusan}
-                </motion.p>
+                </p>
 
                 {/* Level & Progress */}
-                <motion.div 
-                  className="mt-6 flex items-center gap-4"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.7 }}
-                >
+                <div className="mt-6 flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-white/60">Level</span>
                     <span className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold">
@@ -322,35 +267,27 @@ export default function PortfolioPage() {
                     </span>
                   </div>
                   <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div 
+                    <div 
                       className="h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${calculateProgress()}%` }}
-                      transition={{ duration: 1, delay: 0.8 }}
+                      style={{ width: `${calculateProgress()}%` }}
                     />
                   </div>
-                </motion.div>
+                </div>
 
-                {/* Bio */}
-                {isOwner && edit ? (
-                  <textarea
-                    name="bio"
-                    value={data.bio}
-                    onChange={handleChange}
-                    placeholder="Bio singkat"
-                    rows="4"
-                    className="w-full mt-6 bg-white/10 backdrop-blur-sm placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white focus:border-purple-400 transition-colors"
-                  />
-                ) : (
-                  <motion.p 
-                    className="mt-6 text-white/80 leading-relaxed text-lg"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8, delay: 0.9 }}
-                  >
-                    {data.bio}
-                  </motion.p>
-                )}
+                {/* Money Display dari Firebase */}
+                <div className="mt-4 flex items-center gap-4">
+                  <div className="text-2xl">💰</div>
+                  <div>
+                    <p className="text-white/60 text-sm">Saldo</p>
+                    <p className="text-2xl font-bold text-yellow-400">
+                      Rp {userData?.money?.toLocaleString() || money.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="mt-6 text-white/80 leading-relaxed text-lg">
+                  {data.bio}
+                </p>
               </div>
             </div>
           </div>
@@ -373,75 +310,30 @@ export default function PortfolioPage() {
             )}
           </div>
 
-          {/* Stats */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-              <div>
-                <p className="text-white/60 text-sm">Saldo Game</p>
-                <p className="text-2xl font-bold text-yellow-400">Rp {money.toLocaleString()}</p>
+          {/* Recent Transactions */}
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6">
+            <h3 className="text-xl font-bold mb-4">📊 Transaksi Terakhir</h3>
+            {transactionsLoading ? (
+              <p className="text-white/60">Loading transactions...</p>
+            ) : transactions.length > 0 ? (
+              <div className="space-y-3">
+                {transactions.slice(0, 5).map((transaction, i) => (
+                  <div key={i} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                    <div>
+                      <p className="text-white font-medium">{transaction.game || 'Unknown Game'}</p>
+                      <p className="text-white/60 text-sm">{formatDate(transaction.timestamp)}</p>
+                    </div>
+                    <p className={`font-bold ${transaction.moneyChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {transaction.moneyChange > 0 ? '+' : ''}
+                      Rp {Math.abs(transaction.moneyChange || 0).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div>
-                <p className="text-white/60 text-sm">Transaksi</p>
-                <p className="text-2xl font-bold text-blue-400">{transactions.length}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-sm">Level</p>
-                <p className="text-2xl font-bold text-purple-400">{calculateLevel()}</p>
-              </div>
-            </div>
+            ) : (
+              <p className="text-white/60">Belum ada transaksi</p>
+            )}
           </div>
-
-          {/* Edit Mode */}
-          {isOwner && edit && (
-            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-6">
-              <h3 className="text-xl font-semibold mb-4">✏️ Edit Profil</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white/70 text-sm mb-2">Bio</label>
-                  <textarea
-                    name="bio"
-                    value={data.bio}
-                    onChange={handleChange}
-                    placeholder="Bio singkat"
-                    rows="3"
-                    className="w-full bg-white/10 placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-white/70 text-sm mb-2">WhatsApp</label>
-                    <input
-                      name="wa"
-                      value={data.wa}
-                      onChange={handleChange}
-                      placeholder="Link WhatsApp"
-                      className="w-full bg-white/10 placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white/70 text-sm mb-2">Instagram</label>
-                    <input
-                      name="ig"
-                      value={data.ig}
-                      onChange={handleChange}
-                      placeholder="Link Instagram"
-                      className="w-full bg-white/10 placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white/70 text-sm mb-2">TikTok</label>
-                    <input
-                      name="tiktok"
-                      value={data.tiktok}
-                      onChange={handleChange}
-                      placeholder="Link TikTok"
-                      className="w-full bg-white/10 placeholder-white/60 px-4 py-3 rounded-xl outline-none border border-white/20 text-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </motion.section>
     </div>

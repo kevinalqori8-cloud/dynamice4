@@ -1,50 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useUserData } from '../../hooks/useFirebaseData';
+import { userService } from '../../service/firebaseService';
 
 const GRID_SIZE = 5;
 const TOTAL_BOXES = GRID_SIZE * GRID_SIZE;
 
 export default function Mines() {
   const nav = useNavigate();
-  
-  // FIXED: Default player untuk mode tanpa nama
-  const defaultPlayer = {
-    nama: "Guest Player",
-    money: 1000
-  };
-
+  const [playerName, setPlayerName] = useState("");
   const [bet, setBet] = useState(10);
   const [grid, setGrid] = useState([]);
   const [revealed, setRevealed] = useState([]);
   const [multiplier, setMultiplier] = useState(1);
   const [gameOver, setGameOver] = useState(false);
   const [status, setStatus] = useState("");
-  const [playerName, setPlayerName] = useState("");
-  const [money] = useState(1000);
 
-  // FIXED: Simplified money management
-  const getMoney = () => {
-    const saved = localStorage.getItem('mines_money');
-    return saved ? parseInt(saved) : 1000;
-  };
+  // FIXED: Gunakan Firebase untuk data user
+  const { data: userData, loading, updateMoney } = useUserData(playerName || "guest");
+  const [money, setMoneyState] = useState(1000);
 
-  const setMoney = (amount) => {
-    localStorage.setItem('mines_money', String(amount));
-    setMoney(amount);
-  };
-
+  // FIXED: Sync dengan Firebase
   useEffect(() => {
-    // Load money on mount
-    const savedMoney = getMoney();
-    setMoney(savedMoney);
-    
-    // Load player name if exists
-    const savedName = localStorage.getItem('mines_player_name');
-    if (savedName) {
-      setPlayerName(savedName);
+    if (userData?.money !== undefined) {
+      setMoneyState(userData.money);
     }
-  }, []);
+  }, [userData]);
 
   const bombCount = Math.max(1, Math.min(5, Math.floor(bet / 50)));
 
@@ -76,7 +58,7 @@ export default function Mines() {
     initGrid();
   }, [bet]);
 
-  const clickBox = (index) => {
+  const clickBox = async (index) => {
     if (gameOver || revealed[index]) return;
     
     const val = grid[index];
@@ -85,10 +67,23 @@ export default function Mines() {
     setRevealed(newRev);
 
     if (val === "bomb") {
+      // FIXED: Update ke Firebase
       const newMoney = money - bet;
-      setMoney(newMoney);
-      setGameOver(true);
-      setStatus(`💥 Anda menabrak ranjau! Kehilangan Rp ${bet.toLocaleString()}`);
+      const result = await updateMoney(newMoney);
+      
+      if (result.success) {
+        setMoneyState(newMoney);
+        setGameOver(true);
+        setStatus(`💥 Anda menabrak ranjau! Kehilangan Rp ${bet.toLocaleString()}`);
+        
+        // Save transaction
+        await userService.addTransaction(playerName, {
+          game: "Mines",
+          moneyChange: -bet,
+          multiplier: multiplier,
+          result: "loss"
+        });
+      }
     } else {
       const newMultiplier = multiplier * val;
       setMultiplier(newMultiplier);
@@ -96,13 +91,28 @@ export default function Mines() {
     }
   };
 
-  const cashOut = () => {
+  const cashOut = async () => {
     if (gameOver) return;
+    
     const win = bet * multiplier;
     const newMoney = money + win;
-    setMoney(newMoney);
-    setGameOver(true);
-    setStatus(`✅ Cash out Rp ${win.toFixed(0)} (Pengali: ${multiplier.toFixed(2)}x)`);
+    
+    // FIXED: Update ke Firebase
+    const result = await updateMoney(newMoney);
+    
+    if (result.success) {
+      setMoneyState(newMoney);
+      setGameOver(true);
+      setStatus(`✅ Cash out Rp ${win.toFixed(0)} (Pengali: ${multiplier.toFixed(2)}x)`);
+      
+      // Save transaction
+      await userService.addTransaction(playerName, {
+        game: "Mines",
+        moneyChange: win,
+        multiplier: multiplier,
+        result: "win"
+      });
+    }
   };
 
   const handleBetChange = (e) => {
@@ -112,24 +122,35 @@ export default function Mines() {
     setBet(Math.max(minBet, Math.min(maxBet, value)));
   };
 
-  const resetMoney = () => {
-    setMoney(1000);
-    initGrid();
-  };
-
-  const savePlayerName = (name) => {
+  const savePlayerName = async (name) => {
     setPlayerName(name);
     localStorage.setItem('mines_player_name', name);
+    
+    // FIXED: Create user di Firebase jika belum ada
+    await userService.saveUserData(name, {
+      nama: name,
+      money: 1000,
+      achievements: []
+    });
   };
+
+  // FIXED: Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-black flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading game data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-black to-black flex flex-col items-center justify-center px-6 py-4">
       {/* Header */}
       <header className="flex items-center gap-3 p-4 w-full max-w-md">
-        <button 
-          onClick={() => nav(-1)} 
-          className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-        >
+        <button onClick={() => nav(-1)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
           ←
         </button>
         <h1 className="text-xl font-bold text-white flex-1">Game Mines</h1>
@@ -152,13 +173,18 @@ export default function Mines() {
               placeholder="Nama Anda"
               className="bg-white/10 placeholder-white/60 px-3 py-2 rounded-lg outline-none border border-white/20 text-white"
               onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  savePlayerName(e.target.value);
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  savePlayerName(e.target.value.trim());
                 }
               }}
             />
             <button
-              onClick={(e) => savePlayerName(e.target.previousElementSibling.value)}
+              onClick={(e) => {
+                const input = e.target.previousElementSibling;
+                if (input.value.trim()) {
+                  savePlayerName(input.value.trim());
+                }
+              }}
               className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg text-white"
             >
               Simpan
