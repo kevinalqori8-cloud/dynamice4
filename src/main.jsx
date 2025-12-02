@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { Analytics } from "@vercel/analytics/next"
 
 // ---------- AUTO REFRESH JIKA KONTEN KOSONG ----------
 (function () {
@@ -21,11 +22,13 @@ import ErrorBoundary from "./components/ErrorBoundary";
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
+	<Analytics>
     <BrowserRouter>
       <ErrorBoundary>
       <App />
       </ErrorBoundary>
     </BrowserRouter>
+	</Analytics>>
   </React.StrictMode>
 );
 

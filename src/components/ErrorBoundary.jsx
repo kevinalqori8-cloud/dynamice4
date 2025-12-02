@@ -115,7 +115,7 @@ class ErrorBoundary extends React.Component {
               color: 'rgba(255, 255, 255, 0.7)',
               lineHeight: 1.6
             }}>
-              Mohon bersabar ini tuh ngelag ..! 
+              Mohon bersabar ini tuh ngelag ..! :v
               Silahkan Refreshshshshshshshshshshshshshshsh :)
             </Typography>
 
@@ -135,7 +135,7 @@ class ErrorBoundary extends React.Component {
                     }
                   }}
                 >
-                  {this.state.showDetails ? 'Hide Details' : 'Show Error Details'}
+                  {this.state.showDetails ? 'Back Euy' : 'Apanihh'}
                 </Button>
                 
                 {this.state.showDetails && (

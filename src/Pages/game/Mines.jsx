@@ -61,7 +61,7 @@ const resetMoney = async () => {
       if (bombIndices.includes(i)) {
         arr[i] = "bomb";
       } else {
-        arr[i] = Math.random() * 1.9 + 0.1;
+        arr[i] = Math.random() * 2.5 + 0.8;
       }
     }
     

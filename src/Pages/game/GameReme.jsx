@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../service/firebaseService';
+import { useUserData } from '../../hooks/useFirebaseData';
 
 const WHEEL_SEGMENTS = 37; // 0-36
 const JACKPOT_NUMBERS = [0, 28, 19]; // Special numbers for 3x win

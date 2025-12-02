@@ -19,6 +19,8 @@ import GameReme from "./Pages/game/GameReme";
 import Game from "./Pages/Game";
 import LuckyWheel from "./Pages/game/LuckyWheel"; // Game baru
 import { AuthProvider } from "./context/AuthContext";
+import Leaderboard from "./components/Leaderboard";
+import { Analytics } from "@vercel/analytics/next"
 
 function Layout() {
   useEffect(() => AOS.init({ duration: 800, once: true }), []);
@@ -53,6 +55,7 @@ export default function App() {
       <Route path="/game/mines" element={<Mines />} />
       <Route path="/game/luckywheel" element={<LuckyWheel />} /> {/* Game baru */}
       <Route path="/game" element={<Game />} />
+	<Route path="/leaderboard" element={<Leaderboard />} />
     </Routes>
 	</AuthProvider>
   );

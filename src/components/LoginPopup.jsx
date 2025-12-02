@@ -1,31 +1,92 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { userService } from "../service/firebaseService";
+import { daftarSiswa } from "../data/siswa";
 
 export default function LoginPopup({ onClose, onLogin }) {
   const [nama, setNama] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [students, setStudents] = useState([]);
+
+  // Load data siswa dari Firebase saat mount
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
+  const loadStudents = async () => {
+    try {
+      // Coba load dari Firebase dulu
+      const firebaseStudents = await userService.getAllStudents();
+      if (firebaseStudents.length > 0) {
+        setStudents(firebaseStudents);
+      } else {
+        // Jika belum ada di Firebase, simpan data awal
+        await saveInitialStudents();
+        setStudents(daftarSiswa);
+      }
+    } catch (error) {
+      console.error("Error loading students:", error);
+      setStudents(daftarSiswa);
+    }
+  };
+
+  const saveInitialStudents = async () => {
+    for (const student of daftarSiswa) {
+      await userService.saveStudentData(student.nama, {
+        ...student,
+        lastLogin: null,
+        isActive: true
+      });
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!nama.trim()) return;
+    if (!nama.trim() || !password.trim()) {
+      alert("❌ Nama dan password harus diisi!");
+      return;
+    }
 
     setLoading(true);
     
     try {
-      // Create or get user
-      const userData = {
-        nama: nama.trim(),
-        money: 1000,
-        achievements: [],
-        joinDate: new Date().toISOString()
-      };
+      // Cari siswa di Firebase
+      const student = await userService.getStudentData(nama.trim());
+      
+      if (student && student.password === password) {
+        // Update last login
+        await userService.updateStudentData(nama.trim(), {
+          ...student,
+          lastLogin: new Date().toISOString()
+        });
 
-      await userService.saveUserData(nama.trim(), userData);
-      onLogin(userData);
+        // Buat user data untuk login
+        const userData = {
+          nama: student.nama,
+          jurusan: student.jurusan,
+          jk: student.jk,
+          lencana: student.lencana || [],
+          money: student.money || 1000,
+          achievements: student.achievements || [],
+          joinDate: student.joinDate || new Date().toISOString(),
+          lastLogin: new Date().toISOString()
+        };
+
+        // Simpan ke user collection juga
+        await userService.saveUserData(student.nama, userData);
+        
+        // Simpan login session
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+        localStorage.setItem('lastLoginTime', new Date().toISOString());
+        
+        onLogin(userData);
+      } else {
+        alert("❌ Nama atau password salah!");
+      }
     } catch (error) {
       console.error("Login error:", error);
-      alert("Login gagal: " + error.message);
+      alert("❌ Login gagal: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -44,21 +105,52 @@ export default function LoginPopup({ onClose, onLogin }) {
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 50 }}
       >
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Login</h2>
-        
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Login Siswa</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-xl"
+          >
+            ✕
+          </button>
+        </div>
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-gray-700 text-sm font-medium mb-2">Nama Anda</label>
+            <label className="block text-gray-700 text-sm font-medium mb-2">Nama Siswa</label>
             <input
               type="text"
               value={nama}
               onChange={(e) => setNama(e.target.value)}
-              placeholder="Masukkan nama Anda"
+              placeholder="Masukkan nama lengkap Anda"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              list="student-list"
+              required
+            />
+            <datalist id="student-list">
+              {students.map((student, index) => (
+                <option key={index} value={student.nama} />
+              ))}
+            </datalist>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Masukkan password"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               required
             />
           </div>
-          
+
+          <div className="text-xs text-gray-500">
+            <p>Password default: DynamicIsLand</p>
+            <p>Atau gunakan password yang telah diubah</p>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
@@ -67,13 +159,6 @@ export default function LoginPopup({ onClose, onLogin }) {
             {loading ? "Loading..." : "Login"}
           </button>
         </form>
-
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-        >
-          ✕
-        </button>
       </motion.div>
     </motion.div>
   );
