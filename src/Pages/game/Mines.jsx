@@ -31,7 +31,7 @@ export default function Mines() {
   const bombCount = Math.max(1, Math.min(5, Math.floor(bet / 50)));
   // Tambahkan function resetMoney
 const resetMoney = async () => {
-  if if (!confirm("Reset saldo ke 1000?")) return;
+  if (!confirm("Reset saldo ke 1000?")) return;
   
   const result = await updateMoney(1000);
   if (result.success) {
