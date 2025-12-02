@@ -27,7 +27,83 @@ export default function GameReme() {
   const [showRules, setShowRules] = useState(false);
 
   // Firebase integration - HAPUS yang lama, keep yang ini
-  const { data: userData, loading, updateMoney } = useUserData(playerName || "guest");
+  // Hapus loading dari useUserData, gunakan error handling
+const { data: userData, error, updateMoney } = useUserData(playerName || "guest");
+
+// Loading state yang lebih cerdas
+if (error) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="text-white text-center">
+        <h2 className="text-xl font-bold mb-4">❌ Error Loading Game</h2>
+        <p className="text-white/70 mb-4">{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg"
+        >
+          Reload Game
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Jika belum login, tampilkan input nama
+if (!playerName) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <motion.div 
+        className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+      >
+        <h3 className="text-white text-center mb-4">Masukkan Nama Anda</h3>
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="Nama Anda"
+            className="bg-white/10 placeholder-white/60 px-4 py-3 rounded-lg outline-none border border-white/20 text-white"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && e.target.value.trim()) {
+                savePlayerName(e.target.value.trim());
+              }
+            }}
+          />
+          <button
+            onClick={(e) => {
+              const input = e.target.previousElementSibling;
+              if (input.value.trim()) {
+                savePlayerName(input.value.trim());
+              }
+            }}
+            className="bg-purple-500 hover:bg-purple-600 px-6 py-3 rounded-lg text-white"
+          >
+            Simpan
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// Jika data belum ada, tampilkan loading sementara
+if (!userData) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="text-white text-center">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p>Loading player data...</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-lg"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
   const [transactions, setTransactions] = useState([]);
 
   // Initialize player

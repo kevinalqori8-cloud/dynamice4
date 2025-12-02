@@ -1,5 +1,17 @@
-import { ref, get, set, push, update } from 'firebase/database';
-import { database } from '../firebase'; // ✅ PASTIKAN path ini benar
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  addDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit,
+  getDocs,
+  updateDoc
+} from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Debug logging
 const debug = true;
@@ -10,23 +22,22 @@ const log = (message, data) => {
 };
 
 export const userService = {
-  // Get user data
+  // Get user data dari Firestore
   async getUserData(userId) {
     try {
       log("Getting user data for:", userId);
-      const userRef = ref(database, `users/${userId}`);
-      const snapshot = await get(userRef);
+      const userDoc = doc(db, 'users', userId);
+      const userSnapshot = await getDoc(userDoc);
       
-      if (snapshot.exists()) {
-        const data = snapshot.val();
+      if (userSnapshot.exists()) {
+        const data = userSnapshot.data();
         log("User data found:", data);
         return { success: true, data };
       } else {
-        log("User data not found, returning default");
-        return { 
-          success: true, 
-          data: this.getDefaultUserData(userId) 
-        };
+        log("User data not found, creating default");
+        const defaultData = this.getDefaultUserData(userId);
+        await this.saveUserData(userId, defaultData);
+        return { success: true, data: defaultData };
       }
     } catch (error) {
       log("Error getting user data:", error);
@@ -34,12 +45,12 @@ export const userService = {
     }
   },
 
-  // Save user data
+  // Save user data ke Firestore
   async saveUserData(userId, data) {
     try {
       log("Saving user data for:", userId, data);
-      const userRef = ref(database, `users/${userId}`);
-      await set(userRef, {
+      const userDoc = doc(db, 'users', userId);
+      await setDoc(userDoc, {
         ...data,
         lastUpdated: new Date().toISOString()
       });
@@ -51,12 +62,15 @@ export const userService = {
     }
   },
 
-  // Update money
+  // Update money di Firestore
   async updateMoney(userId, amount) {
     try {
       log("Updating money for:", userId, "amount:", amount);
-      const userRef = ref(database, `users/${userId}/money`);
-      await set(userRef, amount);
+      const userDoc = doc(db, 'users', userId);
+      await updateDoc(userDoc, {
+        money: amount,
+        lastUpdated: new Date().toISOString()
+      });
       log("Money updated successfully");
       return { success: true };
     } catch (error) {
@@ -65,43 +79,44 @@ export const userService = {
     }
   },
 
-  // Get transactions
-  async getTransactions(userId, limit = 10) {
+  // Get transactions dari Firestore
+  async getTransactions(userId, limitCount = 10) {
     try {
-      log("Getting transactions for:", userId, "limit:", limit);
-      const transactionsRef = ref(database, `transactions/${userId}`);
-      const snapshot = await get(transactionsRef);
+      log("Getting transactions for:", userId, "limit:", limitCount);
+      const transactionsRef = collection(db, 'transactions', userId, 'items');
+      const q = query(
+        transactionsRef,
+        orderBy('timestamp', 'desc'),
+        limit(limitCount)
+      );
       
-      if (snapshot.exists()) {
-        const transactions = Object.values(snapshot.val())
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, limit);
-        log("Transactions found:", transactions.length);
-        return { success: true, data: transactions };
-      } else {
-        log("No transactions found");
-        return { success: true, data: [] };
-      }
+      const querySnapshot = await getDocs(q);
+      const transactions = [];
+      querySnapshot.forEach((doc) => {
+        transactions.push({ id: doc.id, ...doc.data() });
+      });
+      
+      log("Transactions found:", transactions.length);
+      return { success: true, data: transactions };
     } catch (error) {
       log("Error getting transactions:", error);
       return { success: false, error: error.message };
     }
   },
 
-  // Add transaction
+  // Add transaction ke Firestore
   async addTransaction(userId, transaction) {
     try {
       log("Adding transaction for:", userId, transaction);
-      const transactionsRef = ref(database, `transactions/${userId}`);
-      const newTransactionRef = push(transactionsRef);
+      const transactionsRef = collection(db, 'transactions', userId, 'items');
       
-      await set(newTransactionRef, {
+      const docRef = await addDoc(transactionsRef, {
         ...transaction,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       });
       
-      log("Transaction added successfully");
-      return { success: true, id: newTransactionRef.key };
+      log("Transaction added successfully with ID:", docRef.id);
+      return { success: true, id: docRef.id };
     } catch (error) {
       log("Error adding transaction:", error);
       return { success: false, error: error.message };
@@ -121,16 +136,16 @@ export const userService = {
 };
 
 export const gameService = {
-  // Get game state
+  // Get game state dari Firestore
   async getGameState(userId, gameType) {
     try {
       log("Getting game state for:", userId, gameType);
-      const gameRef = ref(database, `games/${userId}/${gameType}`);
-      const snapshot = await get(gameRef);
+      const gameDoc = doc(db, 'games', userId, 'states', gameType);
+      const gameSnapshot = await getDoc(gameDoc);
       
-      if (snapshot.exists()) {
+      if (gameSnapshot.exists()) {
         log("Game state found");
-        return { success: true, data: snapshot.val() };
+        return { success: true, data: gameSnapshot.data() };
       } else {
         log("Game state not found");
         return { success: true, data: null };
@@ -141,12 +156,12 @@ export const gameService = {
     }
   },
 
-  // Save game state
+  // Save game state ke Firestore
   async saveGameState(userId, gameType, gameData) {
     try {
       log("Saving game state for:", userId, gameType);
-      const gameRef = ref(database, `games/${userId}/${gameType}`);
-      await set(gameRef, {
+      const gameDoc = doc(db, 'games', userId, 'states', gameType);
+      await setDoc(gameDoc, {
         ...gameData,
         timestamp: new Date().toISOString()
       });
@@ -160,19 +175,21 @@ export const gameService = {
 };
 
 export const globalStatsService = {
-  // Get global money
+  // Get global money dari Firestore
   async getGlobalMoney() {
     try {
       log("Getting global money");
-      const globalRef = ref(database, 'global/money');
-      const snapshot = await get(globalRef);
+      const globalDoc = doc(db, 'global', 'stats');
+      const globalSnapshot = await getDoc(globalDoc);
       
-      if (snapshot.exists()) {
-        log("Global money found:", snapshot.val());
-        return { success: true, value: snapshot.val() };
+      if (globalSnapshot.exists()) {
+        const data = globalSnapshot.data();
+        log("Global money found:", data.money);
+        return { success: true, value: data.money || 1000000 };
       } else {
-        log("Global money not found, using default");
-        return { success: true, value: 1000000 }; // Default 1 juta
+        log("Global money not found, creating default");
+        await this.updateGlobalMoney(1000000);
+        return { success: true, value: 1000000 };
       }
     } catch (error) {
       log("Error getting global money:", error);
@@ -180,12 +197,15 @@ export const globalStatsService = {
     }
   },
 
-  // Update global money
+  // Update global money di Firestore
   async updateGlobalMoney(amount) {
     try {
       log("Updating global money to:", amount);
-      const globalRef = ref(database, 'global/money');
-      await set(globalRef, amount);
+      const globalDoc = doc(db, 'global', 'stats');
+      await setDoc(globalDoc, {
+        money: amount,
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
       log("Global money updated successfully");
       return { success: true };
     } catch (error) {

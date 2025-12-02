@@ -6,75 +6,150 @@ import { userService } from '../service/firebaseService';
 
 const branches = [
   { 
-    label: "🐱 Game Reme", 
+    label: "Game Reme", 
     path: "/game/reme", 
     color: "from-purple-500 to-indigo-500",
     description: "Game angka dengan multiplier",
     icon: "🎲",
-    particleColor: "#8B5CF6"
+    particleColor: "#8B5CF6",
+    thumbnail: "/thumbnails/gamereme.jpg", // ⭐ Thumbnail bisa Anda ganti
+    category: "Strategy",
+    difficulty: "Medium"
   },
   { 
-    label: "👑 Game Mines",  
+    label: "Game Mines",  
     path: "/game/mines",  
     color: "from-cyan-500 to-blue-500",
     description: "Minesweeper klasik",
     icon: "💎",
-    particleColor: "#06B6D4"
+    particleColor: "#06B6D4",
+    thumbnail: "/thumbnails/mines.jpg", // ⭐ Thumbnail bisa Anda ganti
+    category: "Puzzle",
+    difficulty: "Hard"
   },
   { 
-    label: "🎡 Lucky Wheel",  
+    label: "Lucky Wheel",  
     path: "/game/luckywheel",  
     color: "from-pink-500 to-rose-500",
     description: "Putar roda keberuntungan",
     icon: "🎯",
-    particleColor: "#F472B6"
+    particleColor: "#F472B6",
+    thumbnail: "/thumbnails/luckywheel.jpg", // ⭐ Thumbnail bisa Anda ganti
+    category: "Luck",
+    difficulty: "Easy"
   },
 ];
 
-// Particle System Component
-const ParticleSystem = ({ color, isActive }) => {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 3 + 1,
-    delay: Math.random() * 2,
-  }));
+// Thumbnail Component dengan 3D effect
+const GameThumbnail = ({ src, alt, isHovered }) => {
+  const [imageError, setImageError] = useState(false);
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <AnimatePresence>
-        {isActive && particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute rounded-full"
-            style={{
-              backgroundColor: color,
-              width: particle.size,
-              height: particle.size,
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-            }}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0],
-              y: [-20, 20],
-            }}
-            transition={{
-              duration: 3,
-              delay: particle.delay,
-              repeat: Infinity,
-              repeatDelay: Math.random() * 2,
-            }}
-          />
-        ))}
-      </AnimatePresence>
+    <div className="relative w-full h-48 rounded-xl overflow-hidden mb-4">
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent"
+        animate={isHovered ? { opacity: 0.3 } : { opacity: 0.6 }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      {imageError || !src ? (
+        <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+          <span className="text-6xl opacity-30">{alt}</span>
+        </div>
+      ) : (
+        <motion.img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+          animate={isHovered ? { scale: 1.1 } : { scale: 1 }}
+          transition={{ duration: 0.3 }}
+        />
+      )}
+
+      {/* Overlay gradient */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+      
+      {/* Glow effect */}
+      <motion.div 
+        className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent blur-xl"
+        animate={isHovered ? { opacity: [0.2, 0.4, 0.2] } : { opacity: 0 }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
     </div>
   );
 };
 
-// 3D Card Component
+// Compact Name Input untuk Mobile
+const CompactNameInput = ({ onSave }) => {
+  const [name, setName] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleSave = () => {
+    if (name.trim()) {
+      onSave(name.trim());
+      setName("");
+      setIsExpanded(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      className="fixed top-4 left-4 right-4 z-50"
+      initial={false}
+      animate={isExpanded ? "expanded" : "collapsed"}
+      variants={{
+        collapsed: { width: 60, height: 60 },
+        expanded: { width: "auto", height: "auto" }
+      }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    >
+      {!isExpanded ? (
+        <motion.button
+          onClick={() => setIsExpanded(true)}
+          className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <span className="text-xl">👤</span>
+        </motion.button>
+      ) : (
+        <motion.div 
+          className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-white/20"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nama Anda"
+              className="flex-1 bg-transparent border-none outline-none text-gray-800 placeholder-gray-500"
+              onKeyPress={(e) => e.key === 'Enter' && handleSave()}
+              autoFocus
+            />
+            <button
+              onClick={handleSave}
+              disabled={!name.trim()}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Simpan
+            </button>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="p-2 text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+};
+
+// Game Card Component dengan Marketplace Style
 const GameCard = ({ branch, index, onClick, isActive }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -98,7 +173,7 @@ const GameCard = ({ branch, index, onClick, isActive }) => {
       className="relative group cursor-pointer"
       onClick={onClick}
     >
-      <div className="relative w-full rounded-3xl p-8 text-white overflow-hidden transform-gpu">
+      <div className="relative w-full rounded-3xl overflow-hidden transform-gpu">
         {/* 3D Background Gradient */}
         <div 
           className={`absolute inset-0 bg-gradient-to-br ${branch.color} transition-all duration-500 group-hover:scale-110`}
@@ -110,55 +185,63 @@ const GameCard = ({ branch, index, onClick, isActive }) => {
         {/* Glass Effect Layer */}
         <div className="absolute inset-0 bg-black/20 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         
-        {/* Animated Background Pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent"></div>
-          <div className="absolute bottom-0 right-0 w-full h-full bg-gradient-to-tl from-white/5 to-transparent"></div>
-        </div>
+        {/* Thumbnail */}
+        <GameThumbnail 
+          src={branch.thumbnail} 
+          alt={branch.label} 
+          isHovered={isHovered}
+        />
 
-        {/* Particle System */}
-        <ParticleSystem color={branch.particleColor} isActive={isHovered} />
+        {/* Content Overlay */}
+        <div className="relative z-10 p-6">
+          {/* Header dengan icon dan kategori */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-3xl">{branch.icon}</span>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-1 bg-white/20 rounded text-xs">
+                {branch.category}
+              </span>
+              <span className={`px-2 py-1 rounded text-xs ${
+                branch.difficulty === 'Easy' ? 'bg-green-500/20 text-green-300' :
+                branch.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                'bg-red-500/20 text-red-300'
+              }`}>
+                {branch.difficulty}
+              </span>
+            </div>
+          </div>
 
-        {/* Main Content */}
-        <div className="relative z-10">
-          {/* Icon with floating animation */}
-          <motion.div 
-            className="text-6xl mb-6 text-center"
-            animate={isHovered ? {
-              y: [-5, 5, -5],
-              rotate: [0, 10, -10, 0],
-            } : {}}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            {branch.icon}
-          </motion.div>
-          
-          {/* Title with glow effect */}
+          {/* Title */}
           <motion.h3 
-            className="text-2xl font-bold mb-3 text-center relative"
+            className="text-xl font-bold mb-2 text-white"
             animate={isHovered ? { scale: 1.05 } : {}}
             transition={{ duration: 0.3 }}
           >
             {branch.label}
-            {/* Glow effect */}
-            <motion.span 
-              className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent blur-xl"
-              animate={isHovered ? { opacity: [0.3, 0.6, 0.3] } : { opacity: 0 }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
           </motion.h3>
           
           {/* Description */}
-          <p className="text-sm text-white/80 text-center leading-relaxed">
+          <p className="text-sm text-white/80 mb-4 leading-relaxed">
             {branch.description}
           </p>
+
+          {/* Play Button */}
+          <motion.div 
+            className="flex items-center justify-between"
+            animate={isHovered ? { x: 0 } : { x: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <span className="text-white/60 text-sm">Tap to play</span>
+            <motion.div 
+              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
+              animate={isHovered ? { scale: 1.2 } : { scale: 1 }}
+            >
+              <span className="text-white">▶</span>
+            </motion.div>
+          </motion.div>
         </div>
 
-        {/* Hover Border Effect */}
+        {/* Hover effects */}
         <motion.div 
           className="absolute inset-0 rounded-3xl border-2"
           animate={isHovered ? { 
@@ -167,21 +250,37 @@ const GameCard = ({ branch, index, onClick, isActive }) => {
           transition={{ duration: 1.5, repeat: Infinity }}
         />
 
-        {/* Corner Decorations */}
-        <div className="absolute top-4 left-4 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div className="absolute top-4 right-4 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div className="absolute bottom-4 left-4 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-        <div className="absolute bottom-4 right-4 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        {/* Particle System */}
+        <ParticleSystem color={branch.particleColor} isActive={isHovered} />
       </div>
     </motion.div>
   );
 };
 
-// Main Component
+// Stats Card Component
+const StatsCard = ({ title, value, icon, color }) => (
+  <motion.div 
+    className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4"
+    whileHover={{ scale: 1.05 }}
+    transition={{ duration: 0.3 }}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center text-white`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-white/60 text-sm">{title}</p>
+        <p className="text-white font-bold text-lg">{value}</p>
+      </div>
+    </div>
+  </motion.div>
+);
+
+// Main Component dengan Marketplace Style
 export default function GameHub() {
   const navigate = useNavigate();
-  const [activeGame, setActiveGame] = useState(null);
   const [playerName, setPlayerName] = useState("");
+  const [showNameInput, setShowNameInput] = useState(false);
   const { data: userData } = useUserData(playerName || "guest");
 
   // Initialize player
@@ -189,6 +288,9 @@ export default function GameHub() {
     const savedName = localStorage.getItem('gamehub_player_name');
     if (savedName) {
       setPlayerName(savedName);
+      setShowNameInput(false);
+    } else {
+      setShowNameInput(true);
     }
   }, []);
 
@@ -197,6 +299,7 @@ export default function GameHub() {
     
     setPlayerName(name.trim());
     localStorage.setItem('gamehub_player_name', name.trim());
+    setShowNameInput(false);
     
     await userService.saveUserData(name.trim(), {
       nama: name.trim(),
@@ -205,96 +308,91 @@ export default function GameHub() {
     });
   };
 
-  const handleGameSelect = (path) => {
-    setActiveGame(path);
-    setTimeout(() => navigate(path), 500); // Delay untuk animasi
-  };
+  // Marketplace-style header
+  const marketplaceHeader = (
+    <motion.div 
+      className="text-center mb-8 z-10"
+      initial={{ opacity: 0, y: -30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8 }}
+    >
+      <motion.h1 
+        className="text-5xl font-bold text-white mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
+      >
+        🎮 Game Marketplace
+      </motion.h1>
+      <p className="text-xl text-white/70 mb-6">
+        Temukan game favoritmu dan menangkan hadiah besar!
+      </p>
+      
+      {/* Stats Dashboard */}
+      <div className="flex justify-center gap-4 mb-6">
+        <StatsCard 
+          title="Total Games" 
+          value={branches.length} 
+          icon="🎮" 
+          color="bg-purple-500/20"
+        />
+        <StatsCard 
+          title="Your Balance" 
+          value={`Rp ${userData?.money?.toLocaleString() || '0'}`} 
+          icon="💰" 
+          color="bg-green-500/20"
+        />
+        <StatsCard 
+          title="Players Online" 
+          value="1,234" 
+          icon="👥" 
+          color="bg-blue-500/20"
+        />
+      </div>
+    </motion.div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-6 overflow-hidden">
-      {/* Animated Background dengan lebih banyak partikel */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-4 overflow-hidden">
+      {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-3/4 left-1/2 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
       </div>
 
-      {/* Header dengan glassmorphism */}
-      <motion.header 
-        className="flex items-center gap-4 p-6 mb-8 z-10"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <motion.button 
-          onClick={() => navigate(-1)} 
-          className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          ←
-        </motion.button>
-        <h1 className="text-3xl font-bold text-white bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Pilih Game
-        </h1>
-      </motion.header>
+      {/* Compact Name Input untuk Mobile */}
+      <CompactNameInput onSave={savePlayerName} />
 
-      {/* Player Name Input */}
-      {!playerName && (
-        <motion.div 
-          className="mb-8 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 z-10"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <h3 className="text-white text-center mb-4">Masukkan Nama Anda</h3>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Nama Anda"
-              className="bg-white/10 placeholder-white/60 px-4 py-3 rounded-lg outline-none border border-white/20 text-white"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && e.target.value.trim()) {
-                  savePlayerName(e.target.value.trim());
-                }
-              }}
-            />
-            <button
-              onClick={(e) => {
-                const input = e.target.previousElementSibling;
-                if (input.value.trim()) {
-                  savePlayerName(input.value.trim());
-                }
-              }}
-              className="bg-purple-500 hover:bg-purple-600 px-6 py-3 rounded-lg text-white"
-            >
-              Simpan
-            </button>
-          </div>
-        </motion.div>
-      )}
+      {/* Header dengan Marketplace Style */}
+      {playerName && marketplaceHeader}
 
-      {/* Main Content */}
+      {/* Game Grid - Marketplace Style */}
       {playerName && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-6xl z-10"
+        <motion.div 
+          className="w-full max-w-7xl z-10"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
         >
-          {/* Welcome Message */}
-          <motion.div 
-            className="text-center mb-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Selamat datang, {playerName}!
-            </h2>
-            <p className="text-white/60">
-              Saldo Anda: <span className="text-yellow-400 font-bold">Rp {userData?.money?.toLocaleString() || '0'}</span>
-            </p>
-          </motion.div>
+          {/* Filter/Category Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <span className="text-white font-semibold">Kategori:</span>
+              <div className="flex gap-2">
+                {['All', 'Strategy', 'Puzzle', 'Luck'].map((cat) => (
+                  <button
+                    key={cat}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-white/60 text-sm">
+              {branches.length} game tersedia
+            </div>
+          </div>
 
           {/* Game Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -303,53 +401,49 @@ export default function GameHub() {
                 key={branch.path}
                 branch={branch}
                 index={i}
-                onClick={() => handleGameSelect(branch.path)}
-                isActive={activeGame === branch.path}
+                onClick={() => navigate(branch.path)}
+                isActive={false}
               />
             ))}
           </div>
 
-          {/* Additional Features */}
+          {/* Featured Section */}
           <motion.div 
-            className="mt-12 text-center"
+            className="mt-16 text-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 1 }}
           >
-            <p className="text-white/60 text-lg mb-6">
-              🎮 Mainkan game dan kumpulkan uang!
-            </p>
-            
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <h3 className="text-2xl font-bold text-white mb-6">✨ Featured Games</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <motion.div 
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6"
+                className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10 rounded-xl p-6"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="text-3xl mb-3">🏆</div>
-                <h4 className="text-white font-semibold mb-2">Siapapun Bisa Menang</h4>
-                <p className="text-white/60 text-sm">Game dengan sistem fair dan transparan</p>
+                <div className="text-4xl mb-4">🏆</div>
+                <h4 className="text-white font-semibold mb-2">Turnamen Mingguan</h4>
+                <p className="text-white/60 text-sm">Ikuti turnamen dan menangkan hadiah besar!</p>
               </motion.div>
               
               <motion.div 
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6"
+                className="bg-gradient-to-br from-green-500/20 to-blue-500/20 backdrop-blur-sm border border-white/10 rounded-xl p-6"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="text-3xl mb-3">💰</div>
-                <h4 className="text-white font-semibold mb-2">Uang Global</h4>
-                <p className="text-white/60 text-sm">Saldo tersimpan otomatis di cloud</p>
+                <div className="text-4xl mb-4">🎁</div>
+                <h4 className="text-white font-semibold mb-2">Daily Rewards</h4>
+                <p className="text-white/60 text-sm">Login setiap hari untuk bonus menarik!</p>
               </motion.div>
               
               <motion.div 
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6"
+                className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-sm border border-white/10 rounded-xl p-6"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="text-3xl mb-3">🎯</div>
-                <h4 className="text-white font-semibold mb-2">Test Keberuntungan</h4>
-                <p className="text-white/60 text-sm">Buktikan skill dan strategi Anda</p>
+                <div className="text-4xl mb-4">👥</div>
+                <h4 className="text-white font-semibold mb-2">Referral Program</h4>
+                <p className="text-white/60 text-sm">Undang teman dan dapatkan bonus!</p>
               </motion.div>
             </div>
           </motion.div>
