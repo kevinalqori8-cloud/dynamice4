@@ -391,7 +391,7 @@ export default function GameReme() {
                 <span className="flex items-center justify-center gap-2">
                   <motion.span 
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear"linear" }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   >
                     🌀
                   </motion.span>
