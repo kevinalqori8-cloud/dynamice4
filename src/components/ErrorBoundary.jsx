@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
 import { Refresh as RefreshIcon } from '@mui/icons-material';
-import './ErrorBoundary.css'; // Tambahkan file CSS untuk animasi
+import './loadinf/ErrorBoundary.css'; // Tambahkan file CSS untuk animasi
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -107,7 +107,7 @@ class ErrorBoundary extends React.Component {
               WebkitTextFillColor: 'transparent',
               animation: 'gradient-shift 3s ease infinite'
             }}>
-              System Error Detected
+              Web Loading ...
             </Typography>
             
             <Typography variant="body1" sx={{ 
@@ -115,8 +115,8 @@ class ErrorBoundary extends React.Component {
               color: 'rgba(255, 255, 255, 0.7)',
               lineHeight: 1.6
             }}>
-              Web Loading... 
-              Coba Refresh Untuk melanjutkan
+              Mohon bersabar ini tuh ngelag ..! 
+              Silahkan Refreshshshshshshshshshshshshshshsh :)
             </Typography>
 
             {this.state.error && (
@@ -241,5 +241,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Export yang bener! Dipindahkan ke luar class
 export default ErrorBoundary;
 
