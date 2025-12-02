@@ -6,6 +6,7 @@ import { userService } from '../../service/firebaseService';
 
 const GRID_SIZE = 5;
 const TOTAL_BOXES = GRID_SIZE * GRID_SIZE;
+const specialnum = [0, 28, 19]; // Jackpot numbers
 
 export default function GameReme() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function GameReme() {
   const [lastResults, setLastResults] = useState([]);
   const [showRules, setShowRules] = useState(false);
 
-  // Firebase integration
+  // Firebase integration - HAPUS yang lama, keep yang ini
   const { data: userData, loading, updateMoney } = useUserData(playerName || "guest");
   const [transactions, setTransactions] = useState([]);
 
@@ -72,28 +73,6 @@ export default function GameReme() {
     localStorage.setItem('gameResults', JSON.stringify(updated));
   };
 
-  const updateMoney = async (newAmount, transactionType, amount) => {
-    try {
-      await set(MONEY_REF, newAmount);
-      
-      const transaction = {
-        type: transactionType,
-        amount: amount,
-        newBalance: newAmount,
-        timestamp: Date.now(),
-        game: 'GameReme'
-      };
-      
-      await push(TRANSACTIONS_REF, transaction);
-      setMoney(newAmount);
-    } catch (error) {
-      console.error("Error updating money:", error);
-      // Fallback to localStorage
-      localStorage.setItem('globalMoney', String(newAmount));
-      setMoney(newAmount);
-    }
-  };
-
   // Game logic
   const getColor = (n) => {
     if (n === 0) return "bg-green-500";
@@ -121,7 +100,7 @@ export default function GameReme() {
       setPlayerNumber(Math.floor(Math.random() * 37));
     }, 100);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       clearInterval(spinInterval);
       
       const h = Math.floor(Math.random() * 37);
@@ -140,19 +119,19 @@ export default function GameReme() {
       if (specialnum.includes(pFinal) && !specialnum.includes(hFinal)) {
         moneyChange = bet * 3;
         resultText = "🎉 Jackpot! Menang 3x!";
-        updateMoney(money + bet * 3, 'win', bet * 3);
+        await updateMoney(money + bet * 3, 'win', bet * 3);
       } else if (pFinal > hFinal) {
         moneyChange = bet * 2;
         resultText = "🎉 Menang 2x!";
-        updateMoney(money + bet * 2, 'win', bet * 2);
+        await updateMoney(money + bet * 2, 'win', bet * 2);
       } else if (pFinal === hFinal) {
         moneyChange = -bet;
         resultText = "😞 Seri - kalah taruhan";
-        updateMoney(money - bet, 'lose', -bet);
+        await updateMoney(money - bet, 'lose', -bet);
       } else {
         moneyChange = -bet;
         resultText = "😞 Kalah";
-        updateMoney(money - bet, 'lose', -bet);
+        await updateMoney(money - bet, 'lose', -bet);
       }
 
       setStatus(resultText);
@@ -176,6 +155,18 @@ export default function GameReme() {
       alert("Saldo direset!");
     }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading GameReme...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-4 overflow-hidden">
