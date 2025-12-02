@@ -74,7 +74,6 @@ export default function LuckyWheel() {
   }, []);
 
   const savePlayerName = async (name) => {
-    ifname) => {
     if (!name.trim()) return;
     
     setPlayerName(name.trim());
