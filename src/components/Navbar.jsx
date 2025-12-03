@@ -24,32 +24,22 @@ export default function Navbar() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check login status dari Firebase
   useEffect(() => {
     checkFirebaseLogin();
-    
-    // Listen untuk perubahan login status
     window.addEventListener('loginStatusChanged', checkFirebaseLogin);
-    
-    return () => {
-      window.removeEventListener('loginStatusChanged', checkFirebaseLogin);
-    };
+    return () => window.removeEventListener('loginStatusChanged', checkFirebaseLogin);
   }, []);
 
   const checkFirebaseLogin = async () => {
     try {
       setLoading(true);
-      // Cek dari localStorage dulu
       const localUser = localStorage.getItem('currentUser');
       if (localUser) {
         const userData = JSON.parse(localUser);
-        
-        // Verifikasi dengan Firebase
         const firebaseUser = await userService.getUserData(userData.nama);
         if (firebaseUser) {
           setCurrentUser(firebaseUser);
         } else {
-          // Hapus localStorage jika tidak valid
           localStorage.removeItem('currentUser');
           setCurrentUser(null);
         }
@@ -78,21 +68,17 @@ export default function Navbar() {
     try {
       setOpenLogin(false);
       
-      // Simpan ke Firebase dengan status online
+      // Simpan ke Firebase
       await userService.saveUserData(userData.nama, {
         ...userData,
         lastLogin: new Date().toISOString(),
         isOnline: true
       });
       
-      // Simpan ke localStorage
       localStorage.setItem('currentUser', JSON.stringify(userData));
       localStorage.setItem('lastLoginTime', new Date().toISOString());
       
       setCurrentUser(userData);
-      window.dispatchEvent(new Event('loginStatusChanged'));
-      
-      // Redirect ke games
       navigate("/game");
     } catch (error) {
       console.error("Login error:", error);
@@ -103,7 +89,6 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       if (currentUser) {
-        // Update status offline di Firebase
         await userService.saveUserData(currentUser.nama, {
           isOnline: false,
           lastLogout: new Date().toISOString()
@@ -114,14 +99,13 @@ export default function Navbar() {
       localStorage.removeItem('currentUser');
       localStorage.removeItem('lastLoginTime');
       setCurrentUser(null);
-      window.dispatchEvent(new Event('loginStatusChanged'));
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  // Bagian Kiri Navbar - Diperbarui dengan tampilan yang lebih menarik
+  // Bagian Kiri Navbar
   const BrandSection = () => (
     <motion.div 
       className="flex items-center gap-3 cursor-pointer"
@@ -165,16 +149,10 @@ export default function Navbar() {
 
   return (
     <>
-      {/* ======= DESKTOP ======= */}
-      <header
-        className="hidden lg:flex items-center justify-between px-6 py-3 rounded-full 
-                     glass-card max-w-5xl mx-auto mt-6"
-        data-aos="fade-down"
-      >
-        {/* Bagian Kiri - Brand yang sudah diperbarui */}
+      {/* Desktop */}
+      <header className="hidden lg:flex items-center justify-between px-6 py-3 rounded-full glass-card max-w-5xl mx-auto mt-6">
         <BrandSection />
-
-        {/* Tengah = Search bar */}
+        
         <div className="relative flex-1 max-w-xs mx-4">
           <input
             type="text"
@@ -201,9 +179,7 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Kanan = Login/Profile - SESUAI STATUS LOGIN */}
         {currentUser ? (
-          // Tampilkan menu Portfolio jika sudah login
           <div className="relative">
             <motion.button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -220,7 +196,6 @@ export default function Navbar() {
               </svg>
             </motion.button>
 
-            {/* Profile Dropdown */}
             <AnimatePresence>
               {showProfileMenu && (
                 <motion.div 
@@ -273,7 +248,6 @@ export default function Navbar() {
             </AnimatePresence>
           </div>
         ) : (
-          // Tampilkan tombol Login jika belum login
           <motion.button
             onClick={() => setOpenLogin(true)}
             className="glass-button px-4 py-2 rounded-full text-sm"
@@ -285,13 +259,9 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* ======= MOBILE ======= */}
-      <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 px-4 pt-4"
-        data-aos="fade-down"
-      >
+      {/* Mobile */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 px-4 pt-4">
         <div className="flex items-center justify-between rounded-full glass-card px-4 py-3">
-          {/* Kiri = Brand yang sudah diperbarui */}
           <motion.div 
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => navigate("/menu")}
@@ -317,7 +287,6 @@ export default function Navbar() {
             </div>
           </motion.div>
 
-          {/* Tengah = Search */}
           <div className="relative flex-1 mx-3">
             <input
               type="text"
@@ -344,9 +313,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Kanan = Login/Profile - SESUAI STATUS LOGIN */}
           {currentUser ? (
-            // Tampilkan menu Portfolio jika sudah login
             <motion.button
               onClick={() => navigate(`/portfolio/${encodeURIComponent(currentUser.nama)}`)}
               className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center"
@@ -359,7 +326,6 @@ export default function Navbar() {
               </span>
             </motion.button>
           ) : (
-            // Tampilkan tombol Login jika belum login
             <motion.button
               onClick={() => setOpenLogin(true)}
               className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
@@ -373,7 +339,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Pop-up Login */}
+      {/* Login Popup */}
       <AnimatePresence>
         {openLogin && (
           <LoginPopup 

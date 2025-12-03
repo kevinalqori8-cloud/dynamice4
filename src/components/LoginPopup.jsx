@@ -2,42 +2,30 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { userService } from "../service/firebaseService";
 import { daftarSiswa } from "../data/siswa";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPopup({ onClose, onLogin }) {
+  const navigate = useNavigate();
   const [nama, setNama] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState([]);
 
-  // Load data siswa dari Firebase saat mount
   useEffect(() => {
     loadStudents();
   }, []);
 
   const loadStudents = async () => {
     try {
-      // Coba load dari Firebase dulu
       const firebaseStudents = await userService.getAllStudents();
       if (firebaseStudents.length > 0) {
         setStudents(firebaseStudents);
       } else {
-        // Jika belum ada di Firebase, simpan data awal
-        await saveInitialStudents();
         setStudents(daftarSiswa);
       }
     } catch (error) {
       console.error("Error loading students:", error);
       setStudents(daftarSiswa);
-    }
-  };
-
-  const saveInitialStudents = async () => {
-    for (const student of daftarSiswa) {
-      await userService.saveStudentData(student.nama, {
-        ...student,
-        lastLogin: null,
-        isActive: true
-      });
     }
   };
 
@@ -51,17 +39,17 @@ export default function LoginPopup({ onClose, onLogin }) {
     setLoading(true);
     
     try {
+      console.log('1. Starting login process...');
+      console.log('2. User input:', { nama: nama.trim(), password: password });
+      
       // Cari siswa di Firebase
       const student = await userService.getStudentData(nama.trim());
+      console.log('3. Student found:', student);
       
       if (student && student.password === password) {
-        // Update last login
-        await userService.updateStudentData(nama.trim(), {
-          ...student,
-          lastLogin: new Date().toISOString()
-        });
-
-        // Buat user data untuk login
+        console.log('4. Password match, creating user data...');
+        
+        // Buat user data
         const userData = {
           nama: student.nama,
           jurusan: student.jurusan,
@@ -73,15 +61,23 @@ export default function LoginPopup({ onClose, onLogin }) {
           lastLogin: new Date().toISOString()
         };
 
-        // Simpan ke user collection juga
-        await userService.saveUserData(student.nama, userData);
-        
-        // Simpan login session
+        console.log('5. Saving to localStorage...');
         localStorage.setItem('currentUser', JSON.stringify(userData));
         localStorage.setItem('lastLoginTime', new Date().toISOString());
         
+        console.log('6. Calling onLogin callback...');
         onLogin(userData);
+        
+        console.log('7. Closing popup...');
+        onClose();
+        
+        console.log('8. Redirecting to games...');
+        setTimeout(() => {
+          navigate("/games");
+        }, 100);
+        
       } else {
+        console.log('4. Password mismatch or student not found');
         alert("❌ Nama atau password salah!");
       }
     } catch (error) {
@@ -148,7 +144,6 @@ export default function LoginPopup({ onClose, onLogin }) {
 
           <div className="text-xs text-gray-500">
             <p>Password default: DynamicIsLand</p>
-            <p>Atau gunakan password yang telah diubah</p>
           </div>
 
           <button
