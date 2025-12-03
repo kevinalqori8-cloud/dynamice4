@@ -177,7 +177,6 @@ class ErrorBoundary extends React.Component {
         <Box
           sx={{
             display: 'flex',
-            justify',
             justifyContent: 'center',
             alignItems: 'center',
             minHeight: '100vh',
