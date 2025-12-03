@@ -20,6 +20,7 @@ import Game from "./Pages/Game";
 import LuckyWheel from "./Pages/game/LuckyWheel";
 import { AuthProvider } from "./context/AuthContext";
 import Leaderboard from "./components/Leaderboard";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 // Layout Component untuk halaman utama
 function HomeLayout() {
@@ -92,7 +93,7 @@ function SimpleErrorBoundary({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <SimpleErrorBoundary>
+      <ErrorBoundary>
         <Routes>
           {/* Home Layout - dengan Navbar */}
           <Route path="/" element={<HomeLayout />} />
@@ -115,7 +116,7 @@ export default function App() {
           <Route path="/game" element={<AppLayout><Game /></AppLayout>} />
           <Route path="/leaderboard" element={<AppLayout><Leaderboard /></AppLayout>} />
         </Routes>
-      </SimpleErrorBoundary>
+      </ErrorBoundary>
     </AuthProvider>
   );
 }
