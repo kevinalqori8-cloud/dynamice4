@@ -1,3 +1,5 @@
+// ErrorBoundary.jsx - Tambahkan pengecekan khusus untuk navbar/navigation
+
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Box, Typography, Button, Paper, TextField, InputAdornment } from "@mui/material";
@@ -15,17 +17,17 @@ class ErrorBoundary extends React.Component {
       showSecret: false,
       passwordInput: "",
       passwordVisible: false,
-      isLoading: true,
+      isLoading: false,
       progress: 0,
       showPasswordMenu: false,
-      isFunctionValid: true,
-      shouldRedirect: false, // Tambahkan state untuk redirect
-      loadingComplete: false // Tambahkan state untuk tracking loading selesai
+      shouldRedirect: false,
+      loadingComplete: true, // Default true, tidak preload otomatis
+      isNavigation: false // Tambahkan state untuk deteksi navigation
     };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, isLoading: false }; // Stop loading saat error
+    return { hasError: true, isLoading: false, loadingComplete: true };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -38,41 +40,25 @@ class ErrorBoundary extends React.Component {
     this.setState({
       error: safeError,
       errorInfo: safeErrorInfo,
-      isLoading: false, // Stop loading saat error
+      isLoading: false,
       loadingComplete: true
     });
   }
 
-  componentDidMount() {
-    // Simulasi loading progress
-    this.simulateLoading();
-  }
-
-  simulateLoading = () => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 15;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        
-        // Set loading complete dan tunggu sebentar sebelum lanjut
-        this.setState({ 
-          loadingComplete: true,
-          isLoading: false 
-        }, () => {
-          // Delay kecil sebelum lanjut agar user bisa melihat 100%
-          setTimeout(() => {
-            if (!this.state.hasError) {
-              this.setState({ shouldRedirect: true });
-            }
-          }, 800); // Delay 0.8 detik
-        });
-        
-        return;
-      }
-      this.setState({ progress });
-    }, 200);
+  // Fungsi untuk mengecek apakah ini navigation event
+  isNavigationEvent = () => {
+    // Cek apakah ini navigasi baru atau error biasa
+    const navigationTiming = performance.getEntriesByType('navigation')[0];
+    if (navigationTiming && navigationTiming.type === 'reload') {
+      return true;
+    }
+    
+    // Cek apakah ada perubahan URL (indikasi navigation)
+    const currentUrl = window.location.href;
+    const isNewPage = !sessionStorage.getItem('currentUrl') || sessionStorage.getItem('currentUrl') !== currentUrl;
+    sessionStorage.setItem('currentUrl', currentUrl);
+    
+    return isNewPage;
   };
 
   resetError = () => {
@@ -81,14 +67,8 @@ class ErrorBoundary extends React.Component {
       error: null, 
       errorInfo: null,
       showPasswordMenu: false,
-      isLoading: true,
-      progress: 0,
-      loadingComplete: false,
       shouldRedirect: false
     });
-    
-    // Restart loading simulation
-    this.simulateLoading();
   };
 
   handlePasswordSubmit = () => {
@@ -99,7 +79,6 @@ class ErrorBoundary extends React.Component {
         showPasswordMenu: false,
         passwordInput: ""
       });
-      
       this.displayErrorSafely();
     } else {
       alert("❌ Password salah! Hubungi developer.");
@@ -110,12 +89,12 @@ class ErrorBoundary extends React.Component {
   displayErrorSafely = () => {
     try {
       const { error, errorInfo } = this.state;
-      
       console.log('=== DEVELOPER ERROR UNLOCKED ===');
       console.log('Error:', error?.toString?.() || 'Unknown error');
       console.log('Stack:', errorInfo?.componentStack || 'No stack trace');
       console.log('=================================');
       
+      // Tampilkan notifikasi
       this.showDeveloperNotification();
     } catch (displayError) {
       console.error('Error displaying error:', displayError);
@@ -155,14 +134,19 @@ class ErrorBoundary extends React.Component {
     }
   };
 
-  // Auto redirect saat loading complete dan tidak ada error
+  // Auto redirect untuk kasus-kasus tertentu
   componentDidUpdate(prevProps, prevState) {
-    if (this.state.shouldRedirect && !this.state.hasError && !this.state.isLoading) {
-      // Reset state dan lanjutkan render children
-      this.setState({ shouldRedirect: false }, () => {
-        // Force update untuk lanjutkan ke children
-        this.forceUpdate();
-      });
+    // Jika ini navigation event dan tidak ada error, lanjutkan
+    if (this.state.shouldRedirect && 
+        !this.state.hasError && 
+        !this.state.isLoading && 
+        this.state.loadingComplete) {
+      
+      // Cek apakah ini navigasi biasa (bukan error)
+      if (!this.state.hasError && this.isNavigationEvent()) {
+        this.setState({ shouldRedirect: false });
+        return;
+      }
     }
   };
 
@@ -182,13 +166,13 @@ class ErrorBoundary extends React.Component {
       loadingComplete
     } = this.state;
 
-    // Auto redirect jika loading complete dan tidak ada error
-    if (shouldRedirect && !hasError && loadingComplete) {
-      // Reset state dan lanjutkan
+    // Skip preload untuk navigation events
+    if (!hasError && !isLoading && loadingComplete) {
       return this.props.children;
     }
 
-    if (hasError || isLoading || !loadingComplete) {
+    // Jika error, tampilkan error boundary
+    if (hasError) {
       return (
         <Box
           sx={{
@@ -201,14 +185,7 @@ class ErrorBoundary extends React.Component {
             overflow: 'hidden'
           }}
         >
-          {/* Animated Background */}
-          <div className="infinity-background">
-            <div className="infinity-track">
-              <div className="infinity-dot"></div>
-              <div className="infinity-dot"></div>
-            </div>
-          </div>
-
+          {/* Error Boundary Content */}
           <Paper 
             elevation={10} 
             sx={{ 
@@ -223,231 +200,142 @@ class ErrorBoundary extends React.Component {
               zIndex: 10
             }}
           >
-              {/* Loading State */}
-              {isLoading && (
+            {/* Error State */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+            >
+              {/* Error Icon */}
+              <motion.div 
+                className="relative mb-6"
+                animate={{ 
+                  rotate: [0, 10, -10, 10, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center text-3xl">
+                  ⚠️
+                </div>
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
+                  className="absolute -top-2 -right-2 text-2xl"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
                 >
-                  {/* Animated Logo */}
-                  <motion.div 
-                    className="relative mb-6"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                  >
-                    <div className="infinity-logo-container">
-                      <img 
-                        src="/pp.png" 
-                        alt="Logo" 
-                        className="infinity-logo"
-                      />
-                      <div className="infinity-trail"></div>
-                    </div>
-                  </motion.div>
-
-                  <motion.h1 
-                    className="text-3xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    🚀 Loading Experience
-                  </motion.h1>
-                  
-                  <motion.p 
-                    className="text-white/70 mb-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    {hasError 
-                      ? "Oops! Loadingg..." 
-                      : "Memuat pengalaman digital yang luar biasa..."
-                    }
-                  </motion.p>
-
-                  {/* Progress Bar */}
-                  <motion.div 
-                    className="w-full bg-white/10 rounded-full h-3 mb-6 overflow-hidden"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                  >
-                    <motion.div 
-                      className="h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </motion.div>
-
-                  {/* Status teks yang berubah sesuai kondisi */}
-                  <motion.p 
-                    className="text-white/60 text-sm"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                  >
-                    {Math.round(progress)}% • {hasError ? "Error terdeteksi" : "Loading..."}
-                    {loadingComplete && !hasError && " ✓ Complete - Redirecting..."}
-                  </motion.p>
-
-                  {/* Tombol skip untuk developer */}
-                  {!hasError && (
-                    <motion.button
-                      onClick={() => this.setState({ shouldRedirect: true })}
-                      className="mt-4 text-xs text-white/50 hover:text-white underline"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      Skip loading (developer)
-                    </motion.button>
-                  )}
+                  ❌
                 </motion.div>
-              )}
+              </motion.div>
 
-              {/* Error State */}
-              {hasError && !isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                >
-                  {/* Error Icon */}
-                  <motion.div 
-                    className="relative mb-6"
-                    animate={{ 
-                      rotate: [0, 10, -10, 10, 0],
-                      scale: [1, 1.1, 1]
-                    }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center text-3xl">
-                      😺
-                    </div>
-                    <motion.div
-                      className="absolute -top-2 -right-2 text-2xl"
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    >
-                      ❌
-                    </motion.div>
-                  </motion.div>
+              <motion.h2 
+                className="text-2xl font-bold mb-4 bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                System Error Detected
+              </motion.h2>
+              
+              <motion.p 
+                className="text-white/70 mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                Terdeteksi masalah dalam sistem. Jangan khawatir, kami sedang menanganinya.
+              </motion.p>
 
-                  <motion.h2 
-                    className="text-2xl font-bold mb-4 bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+              {/* Password Unlock Menu */}
+              <AnimatePresence>
+                {showPasswordMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                    exit={{ opacity: 0, height: 0, scale: 0.9 }}
+                    className="mb-6 bg-white/5 rounded-xl p-4 border border-purple-400/30"
                   >
-                    Loading Page...
-                  </motion.h2>
-                  
-                  <motion.p 
-                    className="text-white/70 mb-6"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    Terdeteksi masalah dalam sistem...
-                  </motion.p>
-
-                  {/* Password Unlock Menu */}
-                  <AnimatePresence>
-                    {showPasswordMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                        exit={{ opacity: 0, height: 0, scale: 0.9 }}
-                        className="mb-6 bg-white/5 rounded-xl p-4 border border-purple-400/30"
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Lock className="w-5 h-5" />
+                        Developer Access
+                      </h3>
+                      <button
+                        onClick={() => this.setState({ showPasswordMenu: false })}
+                        className="text-white/60 hover:text-white"
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Lock className="w-5 h-5" />
-                            Developer Access
-                          </h3>
-                          <button
-                            onClick={() => this.setState({ showPasswordMenu: false })}
-                            className="text-white/60 hover:text-white"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        
-                        <p className="text-white/60 text-sm mb-3">
-                          Masukkan password developer untuk melihat detail error
-                        </p>
-
-                        <div className="space-y-3">
-                          <TextField
-                            type={passwordVisible ? "text" : "password"}
-                            value={passwordInput}
-                            onChange={(e) => this.setState({ passwordInput: e.target.value })}
-                            placeholder="Developer Password"
-                            size="small"
-                            fullWidth
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                color: 'white',
-                                '& fieldset': {
-                                  borderColor: 'rgba(138, 43, 226, 0.5)',
-                                },
-                                '&:hover fieldset': {
-                                  borderColor: '#8a2be2',
-                                },
-                              },
-                            }}
-                            InputProps={{
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  <button
-                                    onClick={() => this.setState({ passwordVisible: !passwordVisible })}
-                                    className="text-white/60 hover:text-white"
-                                  >
-                                    {passwordVisible ? <VisibilityOff /> : <Visibility />}
-                                  </button>
-                                </InputAdornment>
-                              ),
-                            }}
-                          />
-                          
-                          <Button
-                            variant="contained"
-                            onClick={this.handlePasswordSubmit}
-                            fullWidth
-                            sx={{
-                              background: 'linear-gradient(45deg, #8a2be2, #9932cc)',
-                              '&:hover': {
-                                background: 'linear-gradient(45deg, #9932cc, #8a2be2)',
-                              }
-                            }}
-                          >
-                            Unlock Error Menu
-                          </Button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Action Buttons */}
-                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<RefreshIcon />}
-                      onClick={this.resetError}
-                      sx={{
-                        background: 'linear-gradient(45deg, #8a2be2, #9932cc)',
-                        '&:hover': {
-                          background: 'linear-gradient(45deg, #9932cc, #8a2be2)',
-                        }
-                      }}
-                    >
-                      Lanjutkan
-                    </Button>
+                        ✕
+                      </button>
+                    </div>
                     
+                    <p className="text-white/60 text-sm mb-3">
+                      Masukkan password developer untuk melihat detail error
+                    </p>
+
+                    <div className="space-y-3">
+                      <TextField
+                        type={passwordVisible ? "text" : "password"}
+                        value={passwordInput}
+                        onChange={(e) => this.setState({ passwordInput: e.target.value })}
+                        placeholder="Developer Password"
+                        size="small"
+                        fullWidth
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            color: 'white',
+                            '& fieldset': {
+                              borderColor: 'rgba(138, 43, 226, 0.5)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: '#8a2be2',
+                            },
+                          },
+                        }}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <button
+                                onClick={() => this.setState({ passwordVisible: !passwordVisible })}
+                                className="text-white/60 hover:text-white"
+                              >
+                                {passwordVisible ? <VisibilityOff /> : <Visibility />}
+                              </button>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      
+                      <Button
+                        variant="contained"
+                        onClick={this.handlePasswordSubmit}
+                        fullWidth
+                        sx={{
+                          background: 'linear-gradient(45deg, #8a2be2, #9932cc)',
+                          '&:hover': {
+                            background: 'linear-gradient(45deg, #9932cc, #8a2be2)',
+                          }
+                        }}
+                      >
+                        Unlock Error Menu
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Error Details (Only if password correct) */}
+              <AnimatePresence>
+                {showSecret && this.state.error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="mb-6"
+                  >
                     <Button
                       variant="outlined"
-                      onClick={() => window.location.reload()}
-                      sx={{
+                      size="small"
+                      onClick={this.toggleDetails}
+                      sx={{ 
+                        mb: 2,
                         borderColor: 'rgba(138, 43, 226, 0.5)',
                         color: 'rgba(255, 255, 255, 0.8)',
                         '&:hover': {
@@ -456,17 +344,79 @@ class ErrorBoundary extends React.Component {
                         }
                       }}
                     >
-                      Refresh Page
+                      {this.state.showDetails ? 'Sembunyikan Detail' : 'Tampilkan Error Detail'}
                     </Button>
-                  </Box>
-                </motion.div>
-              )}
-            </Paper>
-          </Box>
-        );
-      }
+                    
+                    {this.state.showDetails && (
+                      <Paper 
+                        sx={{ 
+                          p: 3, 
+                          background: 'rgba(0, 0, 0, 0.7)',
+                          border: '1px solid rgba(255, 0, 0, 0.3)',
+                          textAlign: 'left',
+                          fontSize: '0.8rem',
+                          maxHeight: '300px',
+                          overflow: 'auto'
+                        }}
+                      >
+                        <Typography variant="h6" sx={{ color: '#ff6b6b', mb: 2 }}>
+                          🔍 Developer Error Details:
+                        </Typography>
+                        <Typography component="div" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.8)' }}>
+                          <strong>🚨 Error:</strong> {this.safeToString(error)}
+                        </Typography>
+                        {errorInfo && (
+                          <Typography component="div" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                            <strong>📍 Stack Trace:</strong>
+                            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.7rem', mt: 1 }}>
+                              {this.safeGetStack(errorInfo)}
+                            </pre>
+                          </Typography>
+                        )}
+                      </Paper>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-      return this.props.children;
+              {/* Action Buttons */}
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                <Button
+                  variant="contained"
+                  startIcon={<RefreshIcon />}
+                  onClick={this.resetError}
+                  sx={{
+                    background: 'linear-gradient(45deg, #8a2be2, #9932cc)',
+                    '&:hover': {
+                      background: 'linear-gradient(45deg, #9932cc, #8a2be2)',
+                    }
+                  }}
+                >
+                  Lanjutkan
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  onClick={() => window.location.reload()}
+                  sx={{
+                    borderColor: 'rgba(138, 43, 226, 0.5)',
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    '&:hover': {
+                      borderColor: '#8a2be2',
+                      background: 'rgba(138, 43, 226, 0.1)'
+                    }
+                  }}
+                >
+                  Refresh Page
+                </Button>
+              </Box>
+            </motion.div>
+          </Paper>
+        </Box>
+      );
+    }
+
+    return this.props.children;
   }
 }
 

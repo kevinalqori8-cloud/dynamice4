@@ -20,7 +20,10 @@ import Game from "./Pages/Game";
 import LuckyWheel from "./Pages/game/LuckyWheel";
 import { AuthProvider } from "./context/AuthContext";
 import Leaderboard from "./components/Leaderboard";
-import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import DinoRunner from "./Pages/game/DinoRunner.jsx";
+import FishIt from "./Pages/game/FishIt.jsx";
+import BlockBlast from "./Pages/game/BlockBlast.jsx";
 
 // Layout Component untuk halaman utama
 function HomeLayout() {
@@ -97,7 +100,7 @@ export default function App() {
         <Routes>
           {/* Home Layout - dengan Navbar */}
           <Route path="/" element={<HomeLayout />} />
-          
+                    
           {/* App Layout - dengan Navbar untuk halaman app */}
           <Route path="/menu" element={<AppLayout><ChatMindMap /></AppLayout>} />
           <Route path="/chat" element={<AppLayout><ChatMindMap /></AppLayout>} />
@@ -115,6 +118,9 @@ export default function App() {
           <Route path="/game/luckywheel" element={<AppLayout><LuckyWheel /></AppLayout>} />
           <Route path="/game" element={<AppLayout><Game /></AppLayout>} />
           <Route path="/leaderboard" element={<AppLayout><Leaderboard /></AppLayout>} />
+	  <Route path="/game/fishing" element={<AppLayout><FishIt /></AppLayout>} />
+	  <Route path="/game/blockblast" element={<AppLayout><BlockBlast /></AppLayout>} />
+	  <Route path="/game/dino" element={<AppLayout><DinoRunner /></AppLayout>} />
         </Routes>
       </ErrorBoundary>
     </AuthProvider>

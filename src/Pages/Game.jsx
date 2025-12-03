@@ -5,6 +5,39 @@ import { useUserData } from '../hooks/useFirebaseData';
 import { userService } from '../service/firebaseService';
 
 const branches = [
+ {
+    label: "Fishing",
+    path: "/game/fishing",
+    color: "from-blue-500 to-cyan-500",
+    description: "Gas berburu secret",
+    icon: "🐟",
+    particleColor: "#8CE4FF",
+    thumbnail: "/thumbnails/fishit.jpg", // ⭐ Thumbnail bisa Anda ganti
+    category: "Luck",
+    difficulty: "Secret"
+  },
+  {
+    label: "Dino",
+    path: "/game/dino",
+    color: "from-green-400 to-blue-500",
+    description: "Putar roda keberuntungan",
+    icon: "🦕",
+    particleColor: "#8BAE66",
+    thumbnail: "/thumbnails/dino.jpg", // ⭐ Thumbnail bisa Anda ganti
+    category: "Skill",
+    difficulty: "Medium"
+  },
+  {
+    label: "BlockBlast",
+    path: "/game/blockblast",
+    color: "from-purple-400 to-pink-500",
+    description: "Pasang Block",
+    icon: "🧩",
+    particleColor: "#E83C91",
+    thumbnail: "/thumbnails/blockblast.jpg", // ⭐ Thumbnail bisa Anda ganti
+    category: "IQ",
+    difficulty: "Easy"
+  },
   { 
     label: "Game Reme", 
     path: "/game/reme", 
