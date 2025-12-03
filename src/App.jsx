@@ -20,7 +20,7 @@ import Game from "./Pages/Game";
 import LuckyWheel from "./Pages/game/LuckyWheel";
 import { AuthProvider } from "./context/AuthContext";
 import Leaderboard from "./components/Leaderboard";
-import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 
 // Layout Component untuk halaman utama
 function HomeLayout() {
