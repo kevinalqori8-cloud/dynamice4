@@ -1,3 +1,5 @@
+// ErrorBoundary.jsx (Versi Diperbaiki - Tidak preload setelah login)
+
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Box, Typography, Button, Paper, TextField, InputAdornment } from "@mui/material";
@@ -15,17 +17,17 @@ class ErrorBoundary extends React.Component {
       showSecret: false,
       passwordInput: "",
       passwordVisible: false,
-      isLoading: true,
+      isLoading: false, // Default false, cek session dulu
       progress: 0,
       showPasswordMenu: false,
-      isFunctionValid: true,
-      shouldRedirect: false, // Tambahkan state untuk redirect
-      loadingComplete: false // Tambahkan state untuk tracking loading selesai
+      shouldRedirect: false,
+      loadingComplete: false,
+      firstLoad: true // Tambahkan state untuk tracking first load
     };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, isLoading: false }; // Stop loading saat error
+    return { hasError: true, isLoading: false, loadingComplete: true };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -38,41 +40,66 @@ class ErrorBoundary extends React.Component {
     this.setState({
       error: safeError,
       errorInfo: safeErrorInfo,
-      isLoading: false, // Stop loading saat error
-      loadingComplete: true
+      isLoading: false,
+      loadingComplete: true,
+      firstLoad: false
     });
   }
 
   componentDidMount() {
-    // Simulasi loading progress
-    this.simulateLoading();
+    this.checkFirstLoad();
   }
 
+  checkFirstLoad = () => {
+    // Cek apakah ini first load atau sudah pernah load
+    const hasLoadedBefore = sessionStorage.getItem('hasLoadedBefore');
+    const lastVisit = sessionStorage.getItem('lastVisit');
+    const now = Date.now();
+    
+    // Jika sudah pernah load dalam 1 jam terakhir, skip preload
+    if (hasLoadedBefore && lastVisit && (now - parseInt(lastVisit)) < 3600000) {
+      this.setState({ 
+        isLoading: false, 
+        loadingComplete: true,
+        firstLoad: false
+      });
+      return;
+    }
+    
+    // Jika belum pernah load, tampilkan preload
+    this.simulateLoading();
+  };
+
   simulateLoading = () => {
+    this.setState({ isLoading: true });
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 15;
+      progress += Math.random() * 18; // Speed up sedikit
+      
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
         
-        // Set loading complete dan tunggu sebentar sebelum lanjut
+        // Simpan ke session storage bahwa sudah pernah load
+        sessionStorage.setItem('hasLoadedBefore', 'true');
+        sessionStorage.setItem('lastVisit', Date.now().toString());
+        
         this.setState({ 
           loadingComplete: true,
           isLoading: false 
         }, () => {
-          // Delay kecil sebelum lanjut agar user bisa melihat 100%
+          // Delay kecil untuk smooth transition
           setTimeout(() => {
             if (!this.state.hasError) {
               this.setState({ shouldRedirect: true });
             }
-          }, 800); // Delay 0.8 detik
+          }, 500);
         });
         
         return;
       }
       this.setState({ progress });
-    }, 200);
+    }, 150); // Speed up loading
   };
 
   resetError = () => {
@@ -81,14 +108,11 @@ class ErrorBoundary extends React.Component {
       error: null, 
       errorInfo: null,
       showPasswordMenu: false,
-      isLoading: true,
+      isLoading: false,
       progress: 0,
-      loadingComplete: false,
+      loadingComplete: true,
       shouldRedirect: false
     });
-    
-    // Restart loading simulation
-    this.simulateLoading();
   };
 
   handlePasswordSubmit = () => {
@@ -99,7 +123,6 @@ class ErrorBoundary extends React.Component {
         showPasswordMenu: false,
         passwordInput: ""
       });
-      
       this.displayErrorSafely();
     } else {
       alert("❌ Password salah! Hubungi developer.");
@@ -110,12 +133,10 @@ class ErrorBoundary extends React.Component {
   displayErrorSafely = () => {
     try {
       const { error, errorInfo } = this.state;
-      
       console.log('=== DEVELOPER ERROR UNLOCKED ===');
       console.log('Error:', error?.toString?.() || 'Unknown error');
       console.log('Stack:', errorInfo?.componentStack || 'No stack trace');
       console.log('=================================');
-      
       this.showDeveloperNotification();
     } catch (displayError) {
       console.error('Error displaying error:', displayError);
@@ -157,13 +178,22 @@ class ErrorBoundary extends React.Component {
 
   // Auto redirect saat loading complete dan tidak ada error
   componentDidUpdate(prevProps, prevState) {
-    if (this.state.shouldRedirect && !this.state.hasError && !this.state.isLoading) {
-      // Reset state dan lanjutkan render children
-      this.setState({ shouldRedirect: false }, () => {
-        // Force update untuk lanjutkan ke children
-        this.forceUpdate();
+    if (this.state.shouldRedirect && 
+        !this.state.hasError && 
+        !this.state.isLoading && 
+        this.state.loadingComplete) {
+      // Reset dan lanjutkan
+      this.setState({ 
+        shouldRedirect: false,
+        firstLoad: false 
       });
     }
+  };
+
+  // Fungsi untuk clear session (untuk testing)
+  clearSession = () => {
+    sessionStorage.removeItem('hasLoadedBefore');
+    sessionStorage.removeItem('lastVisit');
   };
 
   render() {
@@ -179,12 +209,17 @@ class ErrorBoundary extends React.Component {
       progress,
       showPasswordMenu,
       shouldRedirect,
-      loadingComplete
+      loadingComplete,
+      firstLoad
     } = this.state;
 
-    // Auto redirect jika loading complete dan tidak ada error
-    if (shouldRedirect && !hasError && loadingComplete) {
-      // Reset state dan lanjutkan
+    // Skip render jika sudah selesai loading dan tidak ada error
+    if (shouldRedirect && !hasError && loadingComplete && !isLoading) {
+      return this.props.children;
+    }
+
+    // Jika buka first load dan tidak ada error, langsung tampilkan children
+    if (!firstLoad && !hasError && !isLoading) {
       return this.props.children;
     }
 
@@ -282,7 +317,6 @@ class ErrorBoundary extends React.Component {
                     />
                   </motion.div>
 
-                  {/* Status teks yang berubah sesuai kondisi */}
                   <motion.p 
                     className="text-white/60 text-sm"
                     initial={{ opacity: 0 }}
@@ -290,19 +324,8 @@ class ErrorBoundary extends React.Component {
                     transition={{ delay: 0.8 }}
                   >
                     {Math.round(progress)}% • {hasError ? "Error terdeteksi" : "Loading..."}
-                    {loadingComplete && !hasError && " ✓ Complete - Redirecting..."}
+                    {loadingComplete && !hasError && " ✓ Complete"}
                   </motion.p>
-
-                  {/* Tombol skip untuk developer */}
-                  {!hasError && (
-                    <motion.button
-                      onClick={() => this.setState({ shouldRedirect: true })}
-                      className="mt-4 text-xs text-white/50 hover:text-white underline"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      Skip loading (developer)
-                    </motion.button>
-                  )}
                 </motion.div>
               )}
 
