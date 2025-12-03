@@ -161,9 +161,9 @@ export default function Navbar() {
     }
   };
 
-  // Fallback motion components
+  // Fixed: Proper fallback motion components
   const MotionDiv = animationEnabled ? motion.div : ({ children, ...props }) => <div {...props}>{children}</div>;
-  const MotionButton = animationEnabled ? motion.button : ({ children, ...props }) => <button {...props}>{children}</div>;
+  const MotionButton = animationEnabled ? motion.button : ({ children, ...props }) => <button {...props}>{children}</button>;
 
   // Animation props dengan fallback
   const getMotionProps = (animationType) => {
