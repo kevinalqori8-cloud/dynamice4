@@ -1,422 +1,434 @@
-// ErrorBoundary.jsx - Tambahkan pengecekan khusus untuk navbar/navigation
-
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Box, Typography, Button, Paper, TextField, InputAdornment } from "@mui/material";
-import { Refresh as RefreshIcon, Lock, Visibility, VisibilityOff } from "@mui/icons-material";
-import "./loadinf/ErrorBoundary.css";
+import React from 'react';
+import { 
+  Box, 
+  Button, 
+  Typography, 
+  Paper, 
+  TextField, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Chip,
+  Grid,
+  Alert,
+  CircularProgress
+} from '@mui/material';
+import { 
+  Refresh as RefreshIcon, 
+  BugReport as BugReportIcon,
+  ExpandMore as ExpandMoreIcon,
+  Security as SecurityIcon,
+  Email as EmailIcon
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { 
-      hasError: false, 
-      error: null, 
+    this.state = {
+      hasError: false,
+      error: null,
       errorInfo: null,
       showDetails: false,
-      showSecret: false,
-      passwordInput: "",
-      passwordVisible: false,
-      isLoading: false,
-      progress: 0,
       showPasswordMenu: false,
-      shouldRedirect: false,
-      loadingComplete: true, // Default true, tidak preload otomatis
-      isNavigation: false // Tambahkan state untuk deteksi navigation
+      passwordInput: '',
+      developerPassword: 'developer2024', // Ganti dengan password yang lebih aman
+      isAuthenticated: false,
+      isReporting: false,
+      userDescription: ''
     };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, isLoading: false, loadingComplete: true };
+    // Update state so the next render will show the fallback UI
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error);
-    console.error('Error info:', errorInfo);
-    
-    const safeError = error || new Error("Unknown error");
-    const safeErrorInfo = errorInfo || { componentStack: "No stack trace available" };
+    // Log the error to an error reporting service
+    console.error('Error caught by boundary:', error, errorInfo);
     
     this.setState({
-      error: safeError,
-      errorInfo: safeErrorInfo,
-      isLoading: false,
-      loadingComplete: true
+      error: error,
+      errorInfo: errorInfo
     });
+
+    // Send error to analytics
+    if (typeof window.gtag !== 'undefined') {
+      window.gtag('event', 'exception', {
+        description: `${error.name}: ${error.message}`,
+        fatal: true
+      });
+    }
+
+    // Auto refresh setelah beberapa menit jika error persisten
+    this.scheduleAutoRefresh();
   }
 
-  // Fungsi untuk mengecek apakah ini navigation event
-  isNavigationEvent = () => {
-    // Cek apakah ini navigasi baru atau error biasa
-    const navigationTiming = performance.getEntriesByType('navigation')[0];
-    if (navigationTiming && navigationTiming.type === 'reload') {
-      return true;
-    }
-    
-    // Cek apakah ada perubahan URL (indikasi navigation)
-    const currentUrl = window.location.href;
-    const isNewPage = !sessionStorage.getItem('currentUrl') || sessionStorage.getItem('currentUrl') !== currentUrl;
-    sessionStorage.setItem('currentUrl', currentUrl);
-    
-    return isNewPage;
+  scheduleAutoRefresh = () => {
+    // Auto refresh setelah 2 menit jika error persisten
+    setTimeout(() => {
+      if (this.state.hasError) {
+        console.log('Auto-refreshing due to persistent error...');
+        window.location.reload();
+      }
+    }, 120000); // 2 menit
   };
 
-  resetError = () => {
-    this.setState({ 
-      hasError: false, 
-      error: null, 
+  handleReset = () => {
+    this.setState({
+      hasError: false,
+      error: null,
       errorInfo: null,
+      showDetails: false,
       showPasswordMenu: false,
-      shouldRedirect: false
+      passwordInput: '',
+      isAuthenticated: false,
+      userDescription: ''
     });
+    
+    // Clear any cached error states
+    localStorage.removeItem('lastError');
+    localStorage.removeItem('errorCount');
+    
+    // Force reload to clean state
+    window.location.reload();
   };
 
   handlePasswordSubmit = () => {
-    const { passwordInput } = this.state;
-    if (passwordInput === "DEV2024") {
-      this.setState({ 
-        showSecret: true, 
-        showPasswordMenu: false,
-        passwordInput: ""
-      });
-      this.displayErrorSafely();
+    if (this.state.passwordInput === this.state.developerPassword) {
+      this.setState({ isAuthenticated: true, showPasswordMenu: false });
     } else {
-      alert("❌ Password salah! Hubungi developer.");
-      this.setState({ passwordInput: "" });
+      alert('Password salah!');
     }
   };
 
-  displayErrorSafely = () => {
-    try {
-      const { error, errorInfo } = this.state;
-      console.log('=== DEVELOPER ERROR UNLOCKED ===');
-      console.log('Error:', error?.toString?.() || 'Unknown error');
-      console.log('Stack:', errorInfo?.componentStack || 'No stack trace');
-      console.log('=================================');
-      
-      // Tampilkan notifikasi
-      this.showDeveloperNotification();
-    } catch (displayError) {
-      console.error('Error displaying error:', displayError);
-    }
-  };
-
-  showDeveloperNotification = () => {
-    const notification = document.createElement('div');
-    notification.className = 'dev-notification';
-    notification.textContent = '🔓 Developer mode unlocked! Check console for details.';
-    document.body.appendChild(notification);
+  handleErrorReport = async () => {
+    this.setState({ isReporting: true });
     
-    setTimeout(() => {
-      notification.remove();
-    }, 3000);
-  };
-
-  safeToString = (obj) => {
     try {
-      if (obj === null || obj === undefined) return "Unknown error";
-      if (typeof obj.toString === 'function') return obj.toString();
-      if (typeof obj.message === 'string') return obj.message;
-      return JSON.stringify(obj);
-    } catch (e) {
-      return "Error displaying error details";
-    }
-  };
+      const reportData = {
+        error: this.state.error?.toString(),
+        stack: this.state.error?.stack,
+        errorInfo: this.state.errorInfo?.componentStack,
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        userDescription: this.state.userDescription,
+        localStorage: { ...localStorage },
+        sessionStorage: { ...sessionStorage }
+      };
 
-  safeGetStack = (errorInfo) => {
-    try {
-      if (!errorInfo) return "No stack trace available";
-      if (typeof errorInfo.componentStack === 'string') return errorInfo.componentStack;
-      if (typeof errorInfo.stack === 'string') return errorInfo.stack;
-      return "Stack trace not available";
-    } catch (e) {
-      return "Error reading stack trace";
-    }
-  };
-
-  // Auto redirect untuk kasus-kasus tertentu
-  componentDidUpdate(prevProps, prevState) {
-    // Jika ini navigation event dan tidak ada error, lanjutkan
-    if (this.state.shouldRedirect && 
-        !this.state.hasError && 
-        !this.state.isLoading && 
-        this.state.loadingComplete) {
+      // Kirim ke Firebase atau email
+      await this.sendErrorReport(reportData);
       
-      // Cek apakah ini navigasi biasa (bukan error)
-      if (!this.state.hasError && this.isNavigationEvent()) {
-        this.setState({ shouldRedirect: false });
-        return;
-      }
+      alert('Error report telah dikirim. Terima kasih atas bantuan Anda!');
+      this.setState({ isReporting: false, userDescription: '' });
+    } catch (error) {
+      console.error('Failed to send error report:', error);
+      alert('Gagal mengirim error report. Silakan coba lagi.');
+      this.setState({ isReporting: false });
     }
+  };
+
+  sendErrorReport = async (reportData) => {
+    // Implementasi pengiriman error report
+    // Bisa ke Firebase, email, atau error tracking service
+    console.log('Error Report:', reportData);
+    
+    // Contoh pengiriman ke Firebase (sesuaikan dengan config Anda)
+    try {
+      const response = await fetch('/api/error-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reportData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      // Fallback: kirim ke email atau simpan di localStorage
+      const errorReports = JSON.parse(localStorage.getItem('errorReports') || '[]');
+      errorReports.push(reportData);
+      localStorage.setItem('errorReports', JSON.stringify(errorReports));
+      
+      throw error;
+    }
+  };
+
+  getErrorMessage = () => {
+    const { error } = this.state;
+    if (!error) return "Terjadi masalah yang tidak terduga";
+    
+    // User-friendly error messages
+    const errorMessages = {
+      'TypeError': 'Terjadi kesalahan tipe data. Halaman akan diperbarui.',
+      'ReferenceError': 'Referensi tidak ditemukan. Halaman akan diperbarui.',
+      'SyntaxError': 'Kesalahan sintaks. Halaman akan diperbarui.',
+      'RangeError': 'Nilai di luar jangkauan. Halaman akan diperbarui.',
+      'NetworkError': 'Kesalahan jaringan. Periksa koneksi internet Anda.',
+      'FirebaseError': 'Kesalahan database. Silakan coba lagi.',
+    };
+
+    const errorType = error.name || 'UnknownError';
+    return errorMessages[errorType] || error.message || "Terjadi masalah yang tidak terduga";
+  };
+
+  getErrorSeverity = () => {
+    const { error } = this.state;
+    if (!error) return 'low';
+    
+    // Determine severity based on error type
+    if (error.message?.includes('Firebase') || error.name === 'NetworkError') {
+      return 'high';
+    } else if (error.name === 'TypeError' || error.name === 'ReferenceError') {
+      return 'medium';
+    }
+    return 'low';
   };
 
   render() {
-    const { 
-      hasError, 
-      error, 
-      errorInfo, 
-      showDetails, 
-      showSecret, 
-      passwordInput, 
-      passwordVisible,
-      isLoading,
-      progress,
-      showPasswordMenu,
-      shouldRedirect,
-      loadingComplete
-    } = this.state;
-
-    // Skip preload untuk navigation events
-    if (!hasError && !isLoading && loadingComplete) {
+    if (!this.state.hasError) {
       return this.props.children;
     }
 
-    // Jika error, tampilkan error boundary
-    if (hasError) {
-      return (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '100vh',
-            background: 'linear-gradient(135deg, #1a0033 0%, #330066 50%, #000000 100%)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
+    const severity = this.getErrorSeverity();
+    const errorMessage = this.getErrorMessage();
+
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-gradient-to-br from-red-900 via-red-800 to-red-900 flex items-center justify-center p-4 z-50"
         >
-          {/* Error Boundary Content */}
-          <Paper 
-            elevation={10} 
-            sx={{ 
-              p: 8, 
-              maxWidth: 600, 
-              textAlign: 'center',
-              background: 'rgba(20, 0, 40, 0.9)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(138, 43, 226, 0.3)',
-              borderRadius: '24px',
-              position: 'relative',
-              zIndex: 10
-            }}
+          <motion.div
+            initial={{ scale: 0.8, y: 50 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.8, y: 50 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="max-w-2xl w-full"
           >
-            {/* Error State */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-            >
-              {/* Error Icon */}
-              <motion.div 
-                className="relative mb-6"
-                animate={{ 
-                  rotate: [0, 10, -10, 10, 0],
-                  scale: [1, 1.1, 1]
-                }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center text-3xl">
-                  ⚠️
-                </div>
+            <Paper className="p-8 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl">
+              {/* Header */}
+              <div className="text-center mb-6">
                 <motion.div
-                  className="absolute -top-2 -right-2 text-2xl"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-6xl mb-4"
                 >
-                  ❌
+                  💥
                 </motion.div>
-              </motion.div>
+                <Typography variant="h4" className="font-bold text-red-700 mb-2">
+                  Ups! Terjadi Kesalahan
+                </Typography>
+                
+                {/* Severity Indicator */}
+                <Chip 
+                  label={`Severity: ${severity.toUpperCase()}`}
+                  color={severity === 'high' ? 'error' : severity === 'medium' ? 'warning' : 'info'}
+                  size="small"
+                  className="mb-4"
+                />
+                
+                <Typography variant="body1" className="text-gray-700 mb-4">
+                  {errorMessage}
+                </Typography>
+                
+                <Alert severity="info" className="mb-4">
+                  Halaman akan otomatis diperbarui dalam 2 menit untuk memperbaiki masalah ini.
+                </Alert>
+              </div>
 
-              <motion.h2 
-                className="text-2xl font-bold mb-4 bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                System Error Detected
-              </motion.h2>
-              
-              <motion.p 
-                className="text-white/70 mb-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                Terdeteksi masalah dalam sistem. Jangan khawatir, kami sedang menanganinya.
-              </motion.p>
-
-              {/* Password Unlock Menu */}
-              <AnimatePresence>
-                {showPasswordMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                    exit={{ opacity: 0, height: 0, scale: 0.9 }}
-                    className="mb-6 bg-white/5 rounded-xl p-4 border border-purple-400/30"
+              {/* Error Details (Developer Access) */}
+              <div className="mb-6">
+                {!this.state.showPasswordMenu && !this.state.isAuthenticated && (
+                  <Button
+                    startIcon={<BugReportIcon />}
+                    onClick={() => this.setState({ showPasswordMenu: true })}
+                    variant="outlined"
+                    size="small"
+                    className="mb-4"
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Lock className="w-5 h-5" />
-                        Developer Access
-                      </h3>
-                      <button
-                        onClick={() => this.setState({ showPasswordMenu: false })}
-                        className="text-white/60 hover:text-white"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    
-                    <p className="text-white/60 text-sm mb-3">
-                      Masukkan password developer untuk melihat detail error
-                    </p>
+                    Developer Access
+                  </Button>
+                )}
 
-                    <div className="space-y-3">
+                <AnimatePresence>
+                  {this.state.showPasswordMenu && !this.state.isAuthenticated && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-4 p-4 bg-gray-50 rounded-lg"
+                    >
+                      <Typography variant="h6" className="mb-3 flex items-center">
+                        <SecurityIcon className="mr-2" />
+                        Developer Access
+                      </Typography>
+                      
                       <TextField
-                        type={passwordVisible ? "text" : "password"}
-                        value={passwordInput}
-                        onChange={(e) => this.setState({ passwordInput: e.target.value })}
-                        placeholder="Developer Password"
-                        size="small"
                         fullWidth
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            color: 'white',
-                            '& fieldset': {
-                              borderColor: 'rgba(138, 43, 226, 0.5)',
-                            },
-                            '&:hover fieldset': {
-                              borderColor: '#8a2be2',
-                            },
-                          },
-                        }}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <button
-                                onClick={() => this.setState({ passwordVisible: !passwordVisible })}
-                                className="text-white/60 hover:text-white"
-                              >
-                                {passwordVisible ? <VisibilityOff /> : <Visibility />}
-                              </button>
-                            </InputAdornment>
-                          ),
-                        }}
+                        type="password"
+                        label="Developer Password"
+                        value={this.state.passwordInput}
+                        onChange={(e) => this.setState({ passwordInput: e.target.value })}
+                        onKeyPress={(e) => e.key === 'Enter' && this.handlePasswordSubmit()}
+                        size="small"
+                        className="mb-3"
                       />
                       
-                      <Button
-                        variant="contained"
-                        onClick={this.handlePasswordSubmit}
-                        fullWidth
-                        sx={{
-                          background: 'linear-gradient(45deg, #8a2be2, #9932cc)',
-                          '&:hover': {
-                            background: 'linear-gradient(45deg, #9932cc, #8a2be2)',
-                          }
-                        }}
-                      >
-                        Unlock Error Menu
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={this.handlePasswordSubmit}
+                          variant="contained"
+                          size="small"
+                        >
+                          Access
+                        </Button>
+                        <Button
+                          onClick={() => this.setState({ showPasswordMenu: false })}
+                          variant="outlined"
+                          size="small"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-              {/* Error Details (Only if password correct) */}
-              <AnimatePresence>
-                {showSecret && this.state.error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="mb-6"
-                  >
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={this.toggleDetails}
-                      sx={{ 
-                        mb: 2,
-                        borderColor: 'rgba(138, 43, 226, 0.5)',
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        '&:hover': {
-                          borderColor: '#8a2be2',
-                          background: 'rgba(138, 43, 226, 0.1)'
-                        }
-                      }}
-                    >
-                      {this.state.showDetails ? 'Sembunyikan Detail' : 'Tampilkan Error Detail'}
-                    </Button>
-                    
-                    {this.state.showDetails && (
-                      <Paper 
-                        sx={{ 
-                          p: 3, 
-                          background: 'rgba(0, 0, 0, 0.7)',
-                          border: '1px solid rgba(255, 0, 0, 0.3)',
-                          textAlign: 'left',
-                          fontSize: '0.8rem',
-                          maxHeight: '300px',
-                          overflow: 'auto'
-                        }}
-                      >
-                        <Typography variant="h6" sx={{ color: '#ff6b6b', mb: 2 }}>
-                          🔍 Developer Error Details:
-                        </Typography>
-                        <Typography component="div" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.8)' }}>
-                          <strong>🚨 Error:</strong> {this.safeToString(error)}
-                        </Typography>
-                        {errorInfo && (
-                          <Typography component="div" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                            <strong>📍 Stack Trace:</strong>
-                            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.7rem', mt: 1 }}>
-                              {this.safeGetStack(errorInfo)}
-                            </pre>
+                {/* Detailed Error Information */}
+                {this.state.isAuthenticated && this.state.error && (
+                  <Accordion className="mb-4">
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Typography>Detailed Error Information</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <div className="space-y-4">
+                        <div>
+                          <Typography variant="subtitle2" className="font-bold">Error Name:</Typography>
+                          <Typography variant="body2" className="font-mono text-sm bg-gray-100 p-2 rounded">
+                            {this.state.error.name}
                           </Typography>
+                        </div>
+                        
+                        <div>
+                          <Typography variant="subtitle2" className="font-bold">Error Message:</Typography>
+                          <Typography variant="body2" className="font-mono text-sm bg-gray-100 p-2 rounded">
+                            {this.state.error.message}
+                          </Typography>
+                        </div>
+                        
+                        {this.state.error.stack && (
+                          <div>
+                            <Typography variant="subtitle2" className="font-bold">Stack Trace:</Typography>
+                            <Typography 
+                              variant="body2" 
+                              className="font-mono text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32"
+                            >
+                              {this.state.error.stack}
+                            </Typography>
+                          </div>
                         )}
-                      </Paper>
-                    )}
-                  </motion.div>
+                        
+                        {this.state.errorInfo?.componentStack && (
+                          <div>
+                            <Typography variant="subtitle2" className="font-bold">Component Stack:</Typography>
+                            <Typography 
+                              variant="body2" 
+                              className="font-mono text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32"
+                            >
+                              {this.state.errorInfo.componentStack}
+                            </Typography>
+                          </div>
+                        )}
+                      </div>
+                    </AccordionDetails>
+                  </Accordion>
                 )}
-              </AnimatePresence>
+              </div>
 
-              {/* Action Buttons */}
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              {/* User Report Section */}
+              <div className="mb-6">
+                <Typography variant="h6" className="mb-3 flex items-center">
+                  <EmailIcon className="mr-2" />
+                  Laporkan Masalah
+                </Typography>
+                
+                <Typography variant="body2" className="mb-3 text-gray-600">
+                  Bantu kami memperbaiki masalah ini dengan menjelaskan apa yang terjadi:
+                </Typography>
+                
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Deskripsi Masalah"
+                  value={this.state.userDescription}
+                  onChange={(e) => this.setState({ userDescription: e.target.value })}
+                  placeholder="Jelaskan apa yang Anda lakukan saat error terjadi..."
+                  className="mb-3"
+                />
+                
                 <Button
+                  startIcon={this.state.isReporting ? <CircularProgress size={20} /> : <BugReportIcon />}
+                  onClick={this.handleErrorReport}
+                  disabled={this.state.isReporting}
                   variant="contained"
-                  startIcon={<RefreshIcon />}
-                  onClick={this.resetError}
-                  sx={{
-                    background: 'linear-gradient(45deg, #8a2be2, #9932cc)',
-                    '&:hover': {
-                      background: 'linear-gradient(45deg, #9932cc, #8a2be2)',
-                    }
-                  }}
+                  color="primary"
+                  fullWidth
                 >
-                  Lanjutkan
+                  {this.state.isReporting ? 'Mengirim...' : 'Kirim Error Report'}
+                </Button>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-3">
+                <Button
+                  startIcon={<RefreshIcon />}
+                  onClick={this.handleReset}
+                  variant="contained"
+                  color="success"
+                  fullWidth
+                  size="large"
+                >
+                  Muat Ulang Halaman
                 </Button>
                 
                 <Button
+                  onClick={() => window.history.back()}
                   variant="outlined"
-                  onClick={() => window.location.reload()}
-                  sx={{
-                    borderColor: 'rgba(138, 43, 226, 0.5)',
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    '&:hover': {
-                      borderColor: '#8a2be2',
-                      background: 'rgba(138, 43, 226, 0.1)'
-                    }
-                  }}
+                  fullWidth
                 >
-                  Refresh Page
+                  Kembali ke Halaman Sebelumnya
                 </Button>
-              </Box>
-            </motion.div>
-          </Paper>
-        </Box>
-      );
-    }
+              </div>
 
-    return this.props.children;
+              {/* Technical Info Footer */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <Typography variant="caption" className="text-gray-500 text-center block">
+                  Error ID: {this.state.error?.name || 'UNKNOWN'}_{Date.now()}
+                </Typography>
+                <Typography variant="caption" className="text-gray-500 text-center block">
+                  Browser: {navigator.userAgent.split(' ')[0]} | Time: {new Date().toLocaleString()}
+                </Typography>
+              </div>
+            </Paper>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
   }
 }
 
