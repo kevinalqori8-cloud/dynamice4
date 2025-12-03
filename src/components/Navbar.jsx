@@ -93,7 +93,7 @@ export default function Navbar() {
       window.dispatchEvent(new Event('loginStatusChanged'));
       
       // Redirect ke games
-      navigate("/games");
+      navigate("/game");
     } catch (error) {
       console.error("Login error:", error);
       alert("❌ Login gagal: " + error.message);
@@ -242,7 +242,7 @@ export default function Navbar() {
                   </motion.button>
                   <motion.button
                     onClick={() => {
-                      navigate("/games");
+                      navigate("/game");
                       setShowProfileMenu(false);
                     }}
                     className="w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2"
