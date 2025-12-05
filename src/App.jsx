@@ -1,4 +1,4 @@
-// src/App.jsx - VERSI FIXED & OPTIMIZED
+// src/App.jsx - VERSI FIXED (No Symbol Conflict)
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -159,43 +159,151 @@ function AppLayout({ children, showNavbar = true, showFooter = true }) {
   );
 }
 
-// 🎯 Route Components yang organized
-const HomePage = () => (
-  <AppLayout>
-    <Home />
-    <Tabs />
-    <SuggestionBox />
-  </AppLayout>
-);
+// 🎯 Main App Component - CLEAN & OPTIMIZED (NO CONFLICTS!)
+function App() {
+  return (
+    <AuthProvider>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          {/* Main Routes - Langsung tanpa wrapper conflict */}
+          <Route path="/" element={
+            <AppLayout>
+              <Home />
+              <Tabs />
+              <SuggestionBox />
+            </AppLayout>
+          } />
+          
+          <Route path="/game" element={
+            <AppLayout>
+              <Game />
+            </AppLayout>
+          } />
+          
+          <Route path="/chat" element={
+            <AppLayout>
+              <ChatPage />
+            </AppLayout>
+          } />
+          
+          <Route path="/chat-mindmap" element={
+            <AppLayout>
+              <ChatMindMap />
+            </AppLayout>
+          } />
+          
+          <Route path="/chat-anonim" element={
+            <AppLayout>
+              <ChatAnonimLocalPage />
+            </AppLayout>
+          } />
+          
+          <Route path="/profile" element={
+            <AppLayout>
+              <ProfilePage />
+            </AppLayout>
+          } />
+          
+          <Route path="/portfolio" element={
+            <AppLayout>
+              <PortfolioPage />
+            </AppLayout>
+          } />
+          
+          <Route path="/suggestion" element={
+            <AppLayout>
+              <SuggestionPage />
+            </AppLayout>
+          } />
+          
+          <Route path="/leaderboard" element={
+            <AppLayout>
+              <Leaderboard />
+            </AppLayout>
+          } />
+          
+          <Route path="/gallery" element={
+            <AppLayout>
+              <Gallery />
+            </AppLayout>
+          } />
+          
+          {/* Game Routes */}
+          <Route path="/game/fishing" element={
+            <AppLayout>
+              <FishIt />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/dino" element={
+            <AppLayout>
+              <DinoRunner />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/blockblast" element={
+            <AppLayout>
+              <BlockBlast />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/reme" element={
+            <AppLayout>
+              <GameReme />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/mines" element={
+            <AppLayout>
+              <Mines />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/luckywheel" element={
+            <AppLayout>
+              <LuckyWheel />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/memory" element={
+            <AppLayout>
+              <MemoryCardGame />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/snake" element={
+            <AppLayout>
+              <SnakeGame />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/spaceshoot" element={
+            <AppLayout>
+              <SpaceShooter />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/quiz" element={
+            <AppLayout>
+              <QuizChallenge />
+            </AppLayout>
+          } />
+          
+          <Route path="/game/towerdefense" element={
+            <AppLayout>
+              <TowerDefense />
+            </AppLayout>
+          } />
+          
+          {/* 404 Route */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
+  );
+};
 
-const GamePage = () => (
-  <AppLayout>
-    <Game />
-  </AppLayout>
-);
-
-const ChatPage = () => (
-  <AppLayout>
-    <ChatPage />
-  </AppLayout>
-);
-
-// 🎮 Game Wrapper dengan proper loading
-const GameWrapper = ({ children, title }) => (
-  <AppLayout showNavbar={true} showFooter={true}>
-    <Box sx={{ py: 4 }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      >
-        {children}
-      </motion.div>
-    </Box>
-  </AppLayout>
-);
-
-// 🚨 404 Component yang proper
+// 🚨 404 Component yang proper (dipindahkan ke bawah agar tidak conflict)
 const NotFoundPage = () => {
   const navigate = useNavigate();
   
@@ -225,10 +333,10 @@ const NotFoundPage = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <Typography
-            variant="h2"
+          <Box
             component="h1"
             sx={{
+              fontSize: '2.5rem',
               fontWeight: 'bold',
               mb: 2,
               background: 'linear-gradient(45deg, #8a2be2, #00bcd4)',
@@ -237,15 +345,11 @@ const NotFoundPage = () => {
             }}
           >
             404 - Game Over
-          </Typography>
+          </Box>
           
-          <Typography
-            variant="h6"
-            color="text.secondary"
-            sx={{ mb: 4 }}
-          >
+          <Box sx={{ color: 'text.secondary', mb: 4, fontSize: '1.2rem' }}>
             Halaman tidak ditemukan atau level belum terbuka!
-          </Typography>
+          </Box>
           
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
             <Button
@@ -291,45 +395,6 @@ const NotFoundPage = () => {
     </AppLayout>
   );
 };
-
-// 🎯 Main App Component - CLEAN & OPTIMIZED
-function App() {
-  return (
-    <AuthProvider>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          {/* Main Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/game" element={<GamePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat-mindmap" element={<AppLayout><ChatMindMap /></AppLayout>} />
-          <Route path="/chat-anonim" element={<AppLayout><ChatAnonimLocalPage /></AppLayout>} />
-          <Route path="/profile" element={<AppLayout><ProfilePage /></AppLayout>} />
-          <Route path="/portfolio" element={<AppLayout><PortfolioPage /></AppLayout>} />
-          <Route path="/suggestion" element={<AppLayout><SuggestionPage /></AppLayout>} />
-          <Route path="/leaderboard" element={<AppLayout><Leaderboard /></AppLayout>} />
-          <Route path="/gallery" element={<AppLayout><Gallery /></AppLayout>} />
-          
-          {/* Game Routes dengan proper code splitting */}
-          <Route path="/game/fishing" element={<GameWrapper><FishIt /></GameWrapper>} />
-          <Route path="/game/dino" element={<GameWrapper><DinoRunner /></GameWrapper>} />
-          <Route path="/game/blockblast" element={<GameWrapper><BlockBlast /></GameWrapper>} />
-          <Route path="/game/reme" element={<GameWrapper><GameReme /></GameWrapper>} />
-          <Route path="/game/mines" element={<GameWrapper><Mines /></GameWrapper>} />
-          <Route path="/game/luckywheel" element={<GameWrapper><LuckyWheel /></GameWrapper>} />
-          <Route path="/game/memory" element={<GameWrapper><MemoryCardGame /></GameWrapper>} />
-          <Route path="/game/snake" element={<GameWrapper><SnakeGame /></GameWrapper>} />
-          <Route path="/game/spaceshoot" element={<GameWrapper><SpaceShooter /></GameWrapper>} />
-          <Route path="/game/quiz" element={<GameWrapper><QuizChallenge /></GameWrapper>} />
-          <Route path="/game/towerdefense" element={<GameWrapper><TowerDefense /></GameWrapper>} />
-          
-          {/* 404 Route */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
-    </AuthProvider>
-  );
-}
 
 export default App;
 
