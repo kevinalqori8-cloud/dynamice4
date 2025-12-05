@@ -4,11 +4,11 @@ import { motion } from "framer-motion";
 
 const branches = [
   {
-    label: "👑 Struktur Kelaz",                          >
+    label: "👑 Struktur Kelaz",
     path: "/Tabs",
-    color: "from-black-500 to-purle-500",
+    color: "from-black-500 to-purple-500",
     description: "Struktur Kelaz King",
-    icon: "👑"                                    >
+    icon: "👑"
   },
   {
     label: "🤡 Gallery",                                     
@@ -20,7 +20,7 @@ const branches = [
   {
     label: "🎧 Music & Letters",
     path: "/music",
-    color: "from-black-500 to-white-500",
+    color: "from-purple-500 to-black-500",
     description: "Kirim Pesan dan lagu buat seseorang yuks",
     icon: "🎧"
   },
@@ -41,14 +41,14 @@ const branches = [
   { 
     label: "🚀 Game",  
     path: "/game",    
-    color: "from-pink-500 to-rose-500",
+    color: "from-black-500 to-white-500",
     description: "Main & menangkan hadiah",
     icon: "🎮"
   },
   {
     label: "😜 Leaderboard",
     path: "/leaderboard",
-    color: "from-blue-500 to-purple-500",
+    color: "from-yellow-500 to-white-500",
     description: "On Top",
     icon: "😜"                                          
   },
