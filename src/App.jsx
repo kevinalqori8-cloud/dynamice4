@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, BrowserRouter } from "react-router-dom";
 import Home from "./Pages/Home";
 import Gallery from "./components/Gallery";
 import Tabs from "./Pages/Tabs";
