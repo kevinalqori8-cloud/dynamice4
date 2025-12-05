@@ -206,6 +206,41 @@ const SnakeGame = () => {
     }
     
     return () => {
+	// Update untuk menambahkan mobile controller di SnakeGame
+// Sudah saya tambahkan di kode SpaceShooter di atas, tapi untuk SnakeGame:
+
+// Tambahkan di return SnakeGame:
+{isMobile && gameState === 'playing' && (
+  <div className="fixed bottom-4 left-4 right-4 lg:hidden">
+    <div className="flex justify-center gap-4">
+      <button
+        onClick={() => setDirection('LEFT')}
+        className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white transition-colors"
+      >
+        ←
+      </button>
+      <button
+        onClick={() => setDirection('UP')}
+        className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white transition-colors"
+      >
+        ↑
+      </button>
+      <button
+        onClick={() => setDirection('DOWN')}
+        className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white transition-colors"
+      >
+        ↓
+      </button>
+      <button
+        onClick={() => setDirection('RIGHT')}
+        className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white transition-colors"
+      >
+        →
+      </button>
+    </div>
+  </div>
+)}
+
       if (gameArea) {
         gameArea.removeEventListener('touchstart', handleTouchStart);
         gameArea.removeEventListener('touchend', handleTouchEnd);

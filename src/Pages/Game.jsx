@@ -144,7 +144,7 @@ const Game = () => {
     {
       label: "Quiz Challenge",
       path: "/game/quiz",  // ← PATH TETAP SAMA
-      color: "from-green-400 to-emerald-500",
+      color: "from-black-400 to-navy-500",
       description: "Tantang pengetahuanmu dengan quiz seru! 🎯",
       icon: "🎯",
       particleColor: "#10B981",

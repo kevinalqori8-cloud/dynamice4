@@ -4,6 +4,13 @@ import { motion } from "framer-motion";
 
 const branches = [
   {
+    label: 👑 Struktur Kelaz",                          >
+    path: "/Tabs",
+    color: "from-black-500 to-purle-500",
+    description: "Struktur Kelaz King",
+    icon: "👑"                                    >
+  },
+  {
     label: "🤡 Gallery",                                     
     path: "/gallery",
     color: "from-purple-500 to-cyan-500",
