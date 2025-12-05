@@ -11,6 +11,17 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import PhishingIcon from '@mui/icons-material/Phishing';
 import UpgradeIcon from '@mui/icons-material/Upgrade';
+// Di setiap game component, tambahkan ini:
+import { safeCharAt, safeGet, safeCall } from '../SafeGameWrapper';
+
+// Ganti semua: nama.charAt(0) 
+// Menjadi: safeCharAt(nama, 0)
+
+// Ganti semua: obj.properti.nested
+// Menjadi: safeGet(obj, 'properti.nested', 'default')
+
+// Ganti semua: functionCall()
+// Menjadi: safeCall(functionCall)
 
 const FISHING_ROD_LEVELS = [
   { level: 1, name: "Bamboo Rod", cost: 0, catchRate: 0.3, rareBonus: 1.0 },

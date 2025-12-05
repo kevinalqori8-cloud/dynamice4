@@ -2,46 +2,63 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { daftarSiswa } from "../data/siswa";
 import LoginPopup from "./LoginPopup";
-import { userService } from "../service/firebaseService";
 
-// Import framer-motion dengan error handling
-let motion, AnimatePresence;
+// SAFETY: Import dengan maximum error handling
+let useAuth = () => ({ user: null, logout: () => {} });
+try {
+  const authModule = require("../context/AuthContext");
+  useAuth = authModule.useAuth || useAuth;
+} catch (e) {
+  console.warn("AuthContext unavailable:", e.message);
+}
+
+let userService = {
+  getUserData: async () => null,
+  saveUserData: async () => {}
+};
+try {
+  const serviceModule = require("../service/firebaseService");
+  userService = serviceModule.userService || userService;
+} catch (e) {
+  console.warn("UserService unavailable:", e.message);
+}
+
+let motion = {
+  div: ({ children, ...props }) => <div {...props}>{children}</div>,
+  button: ({ children, ...props }) => <button {...props}>{children}</button>,
+};
+let AnimatePresence = ({ children }) => <>{children}</>;
+
 try {
   const framerMotion = require("framer-motion");
-  motion = framerMotion.motion;
-  AnimatePresence = framerMotion.AnimatePresence;
-} catch (error) {
-  console.warn("Framer-motion not available, using fallback animations");
-  // Fallback components
-  motion = {
-    div: ({ children, ...props }) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }) => <button {...props}>{children}</button>,
-  };
-  AnimatePresence = ({ children }) => <>{children}</>;
+  motion = framerMotion.motion || motion;
+  AnimatePresence = framerMotion.AnimatePresence || AnimatePresence;
+} catch (e) {
+  console.warn("Framer-motion unavailable:", e.message);
 }
 
-// Import AuthContext dengan error handling
-let useAuth;
-try {
-  const authContext = require("../context/AuthContext");
-  useAuth = authContext.useAuth;
-} catch (error) {
-  console.warn("AuthContext not available, using fallback");
-  useAuth = () => ({ user: null, logout: () => {} });
-}
+// SAFETY: Safe character extraction
+const safeCharAt = (str, index) => {
+  if (typeof str !== 'string' || !str) return '';
+  return str.charAt(index) || '';
+};
 
-const navLinks = [
-  { label: "Home", path: "/" },
-  { label: "Gallery", path: "/gallery" },
-  { label: "Schedule", path: "/#Tabs" },
-  { label: "Leaderboard", path: "/leaderboard" },
-  { label: "Games", path: "/game" },
-];
+// SAFETY: Safe navigation
+const safeNavigate = (navigate, path) => {
+  try {
+    if (navigate && typeof navigate === 'function') {
+      navigate(path);
+    }
+  } catch (e) {
+    console.error("Navigation error:", e);
+    window.location.href = path;
+  }
+};
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const authContext = useAuth();
-  const { user, logout } = authContext || { user: null, logout: () => {} };
+  const authContext = useAuth() || {};
+  const { user, logout } = authContext;
   
   const [query, setQuery] = useState("");
   const [hasil, setHasil] = useState([]);
@@ -52,29 +69,24 @@ export default function Navbar() {
   const [animationEnabled, setAnimationEnabled] = useState(true);
 
   useEffect(() => {
-    // Check if framer-motion is working
     setAnimationEnabled(typeof motion !== 'undefined' && motion.div !== motion.button);
-    
     checkFirebaseLogin();
     
-    // Event listener dengan error handling
-    const handleLoginStatusChanged = () => {
-      checkFirebaseLogin();
-    };
-    
+    const handleLoginStatusChanged = () => checkFirebaseLogin();
     window.addEventListener('loginStatusChanged', handleLoginStatusChanged);
     
-    return () => {
-      window.removeEventListener('loginStatusChanged', handleLoginStatusChanged);
-    };
+    return () => window.removeEventListener('loginStatusChanged', handleLoginStatusChanged);
   }, []);
 
   const checkFirebaseLogin = async () => {
     try {
       setLoading(true);
       const localUser = localStorage.getItem('currentUser');
+      
       if (localUser) {
         const userData = JSON.parse(localUser);
+        
+        // SAFETY: Check userService availability
         if (userService && typeof userService.getUserData === 'function') {
           const firebaseUser = await userService.getUserData(userData.nama);
           if (firebaseUser) {
@@ -84,14 +96,14 @@ export default function Navbar() {
             setCurrentUser(null);
           }
         } else {
-          // Fallback jika userService tidak tersedia
+          // Fallback to localStorage only
           setCurrentUser(userData);
         }
       } else {
         setCurrentUser(null);
       }
     } catch (error) {
-      console.error("Error checking login status:", error);
+      console.error("Login check error:", error);
       setCurrentUser(null);
     } finally {
       setLoading(false);
@@ -102,8 +114,9 @@ export default function Navbar() {
     const q = e.target.value;
     setQuery(q);
     if (!q) return setHasil([]);
+    
     const filter = daftarSiswa.filter((s) =>
-      s.nama.toLowerCase().includes(q.toLowerCase())
+      s.nama && s.nama.toLowerCase().includes(q.toLowerCase())
     );
     setHasil(filter.slice(0, 5));
   };
@@ -112,30 +125,25 @@ export default function Navbar() {
     try {
       setOpenLogin(false);
       
-      // Validasi userService
-      if (!userService || typeof userService.saveUserData !== 'function') {
-        console.warn("UserService not available, using localStorage only");
-        localStorage.setItem('currentUser', JSON.stringify(userData));
-        setCurrentUser(userData);
-        navigate("/game");
-        return;
+      // SAFETY: Validate userData
+      if (!userData || !userData.nama) {
+        throw new Error("Invalid user data");
       }
       
-      // Simpan ke Firebase
-      await userService.saveUserData(userData.nama, {
-        ...userData,
-        lastLogin: new Date().toISOString(),
-        isOnline: true
-      });
+      if (userService && typeof userService.saveUserData === 'function') {
+        await userService.saveUserData(userData.nama, {
+          ...userData,
+          lastLogin: new Date().toISOString(),
+          isOnline: true
+        });
+      }
       
       localStorage.setItem('currentUser', JSON.stringify(userData));
-      localStorage.setItem('lastLoginTime', new Date().toISOString());
-      
       setCurrentUser(userData);
-      navigate("/game");
+      safeNavigate(navigate, "/game");
     } catch (error) {
       console.error("Login error:", error);
-      alert("❌ Login gagal: " + error.message);
+      alert("❌ Login gagal: " + (error.message || "Unknown error"));
     }
   };
 
@@ -153,60 +161,38 @@ export default function Navbar() {
       }
       
       localStorage.removeItem('currentUser');
-      localStorage.removeItem('lastLoginTime');
       setCurrentUser(null);
-      navigate("/");
+      safeNavigate(navigate, "/");
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  // Fixed: Proper fallback motion components
-  const MotionDiv = animationEnabled ? motion.div : ({ children, ...props }) => <div {...props}>{children}</div>;
-  const MotionButton = animationEnabled ? motion.button : ({ children, ...props }) => <button {...props}>{children}</button>;
+  // FIXED: Proper motion components without syntax errors
+  const MotionDiv = animationEnabled ? motion.div : ({ children, className = "", onClick, ...props }) => 
+    <div className={className} onClick={onClick} {...props}>{children}</div>;
+  
+  const MotionButton = animationEnabled ? motion.button : ({ children, className = "", onClick, ...props }) => 
+    <button className={className} onClick={onClick} {...props}>{children}</button>;
 
-  // Animation props dengan fallback
-  const getMotionProps = (animationType) => {
+  const getMotionProps = (type) => {
     if (!animationEnabled) return {};
-    
-    switch (animationType) {
-      case 'hover':
-        return {
-          whileHover: { scale: 1.05 },
-          whileTap: { scale: 0.95 }
-        };
-      case 'rotate':
-        return {
-          animate: { rotate: 360 },
-          transition: { duration: 8, repeat: Infinity, ease: "linear" }
-        };
-      case 'menu':
-        return {
-          initial: { opacity: 0, y: -10, scale: 0.9 },
-          animate: { opacity: 1, y: 0, scale: 1 },
-          exit: { opacity: 0, y: -10, scale: 0.9 },
-          transition: { duration: 0.2 }
-        };
-      case 'slide':
-        return {
-          whileHover: { x: 5 }
-        };
-      default:
-        return {};
-    }
+    const base = {
+      hover: { whileHover: { scale: 1.05 }, whileTap: { scale: 0.95 } },
+      rotate: { animate: { rotate: 360 }, transition: { duration: 8, repeat: Infinity, ease: "linear" } },
+      menu: { initial: { opacity: 0, y: -10 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -10 } },
+      slide: { whileHover: { x: 5 } }
+    };
+    return base[type] || {};
   };
 
-  // Bagian Kiri Navbar
   const BrandSection = () => (
     <MotionDiv 
       className="flex items-center gap-3 cursor-pointer"
-      onClick={() => navigate("/menu")}
+      onClick={() => safeNavigate(navigate, "/menu")}
       {...getMotionProps('hover')}
     >
-      <MotionDiv 
-        className="relative"
-        {...getMotionProps('rotate')}
-      >
+      <MotionDiv className="relative" {...getMotionProps('rotate')}>
         <img 
           src="/LogoPHI.png" 
           alt="Logo" 
@@ -238,7 +224,7 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Desktop */}
+      {/* DESKTOP VERSION */}
       <header className="hidden lg:flex items-center justify-between px-6 py-3 rounded-full glass-card max-w-5xl mx-auto mt-6">
         <BrandSection />
         
@@ -256,7 +242,7 @@ export default function Navbar() {
                 <button
                   key={s.nama}
                   onClick={() => {
-                    navigate(`/portfolio/${encodeURIComponent(s.nama)}`);
+                    safeNavigate(navigate, `/portfolio/${encodeURIComponent(s.nama)}`);
                     setQuery(""); setHasil([]);
                   }}
                   className="w-full text-left px-2 py-1 rounded hover:bg-white/10"
@@ -276,9 +262,11 @@ export default function Navbar() {
               {...getMotionProps('hover')}
             >
               <div className="w-5 h-5 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-xs font-bold">
-                {currentUser.nama.charAt(0).toUpperCase()}
+                {safeCharAt(currentUser.nama, 0)}
               </div>
-              <span className="hidden sm:inline">{currentUser.nama.split(' ')[0]}</span>
+              <span className="hidden sm:inline">
+                {currentUser.nama ? currentUser.nama.split(' ')[0] : 'User'}
+              </span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -314,18 +302,15 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* Mobile */}
+      {/* MOBILE VERSION */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 px-4 pt-4">
         <div className="flex items-center justify-between rounded-full glass-card px-4 py-3">
           <MotionDiv 
             className="flex items-center gap-2 cursor-pointer"
-            onClick={() => navigate("/menu")}
+            onClick={() => safeNavigate(navigate, "/menu")}
             {...getMotionProps('hover')}
           >
-            <MotionDiv 
-              className="relative"
-              {...getMotionProps('rotate')}
-            >
+            <MotionDiv className="relative" {...getMotionProps('rotate')}>
               <img 
                 src="/LogoPHI.png" 
                 alt="Logo" 
@@ -354,7 +339,7 @@ export default function Navbar() {
                   <button
                     key={s.nama}
                     onClick={() => {
-                      navigate(`/portfolio/${encodeURIComponent(s.nama)}`);
+                      safeNavigate(navigate, `/portfolio/${encodeURIComponent(s.nama)}`);
                       setQuery(""); setHasil([]);
                     }}
                     className="w-full text-left px-2 py-1 rounded hover:bg-white/10"
@@ -368,13 +353,13 @@ export default function Navbar() {
 
           {currentUser ? (
             <MotionButton
-              onClick={() => navigate(`/portfolio/${encodeURIComponent(currentUser.nama)}`)}
+              onClick={() => safeNavigate(navigate, `/portfolio/${encodeURIComponent(currentUser.nama)}`)}
               className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center"
               title={`Portfolio ${currentUser.nama}`}
               {...getMotionProps('hover')}
             >
               <span className="text-xs font-bold text-white">
-                {currentUser.nama.charAt(0).toUpperCase()}
+                {safeCharAt(currentUser.nama, 0)}
               </span>
             </MotionButton>
           ) : (
@@ -390,7 +375,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Login Popup */}
+      {/* LOGIN POPUP */}
       {animationEnabled ? (
         <AnimatePresence>
           {openLogin && (
@@ -410,42 +395,5 @@ export default function Navbar() {
       )}
     </>
   );
-
-  // Component untuk menu items
-  function MenuItems() {
-    const items = [
-      { label: '📁 Portfolio', action: () => navigate(`/portfolio/${encodeURIComponent(currentUser.nama)}`) },
-      { label: '🎮 Games', action: () => navigate("/game") },
-      { label: '🏆 Leaderboard', action: () => navigate("/leaderboard") },
-      { label: '🚪 Logout', action: handleLogout, className: 'text-red-400' }
-    ];
-
-    return items.map((item, index) => (
-      animationEnabled ? (
-        <motion.button
-          key={index}
-          onClick={() => {
-            item.action();
-            setShowProfileMenu(false);
-          }}
-          className={`w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2 ${item.className || ''}`}
-          {...getMotionProps('slide')}
-        >
-          {item.label}
-        </motion.button>
-      ) : (
-        <button
-          key={index}
-          onClick={() => {
-            item.action();
-            setShowProfileMenu(false);
-          }}
-          className={`w-full text-left px-3 py-2 rounded hover:bg-white/10 flex items-center gap-2 ${item.className || ''}`}
-        >
-          {item.label}
-        </button>
-      )
-    ));
-  }
 }
 

@@ -21,6 +21,17 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+// Di setiap game component, tambahkan ini:
+import { safeCharAt, safeGet, safeCall } from '../SafeGameWrapper';
+
+// Ganti semua: nama.charAt(0) 
+// Menjadi: safeCharAt(nama, 0)
+
+// Ganti semua: obj.properti.nested
+// Menjadi: safeGet(obj, 'properti.nested', 'default')
+
+// Ganti semua: functionCall()
+// Menjadi: safeCall(functionCall)
 
 // 🎯 Tema konsisten dengan game lain
 const DinoRunner = () => {
