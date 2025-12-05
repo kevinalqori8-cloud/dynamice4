@@ -10,6 +10,13 @@ const branches = [
     description: "Gallery Boz",
     icon: "🤡"                                          
   },
+  {
+    label: "🎧 Music & Letters",
+    path: "/music",
+    color: "from-black-500 to-white-500",
+    description: "Kirim Pesan dan lagu buat seseorang yuks",
+    icon: "🎧"
+  },
   { 
     label: "💬 Chat Anonim", 
     path: "/chat/anonim", 

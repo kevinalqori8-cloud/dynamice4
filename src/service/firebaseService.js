@@ -482,6 +482,84 @@ export const globalStatsService = {
   }
 };
 
+// src/service/firebaseService.js - Tambahkan fungsi baru
+
+export const musicDedicationService = {
+  // Send new dedication
+  async sendDedication(dedicationData) {
+    try {
+      const docRef = await addDoc(collection(db, 'musicDedications'), {
+        ...dedicationData,
+        createdAt: serverTimestamp(),
+        likes: 0,
+        likedBy: []
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error sending dedication:', error);
+      throw error;
+    }
+  },
+
+  // Get dedications by receiver name
+  async getDedicationsByReceiver(receiverName, limit = 50) {
+    try {
+      const q = query(
+        collection(db, 'musicDedications'),
+        where('receiverName', '>=', receiverName),
+        where('receiverName', '<=', receiverName + '\uf8ff'),
+        orderBy('createdAt', 'desc'),
+        limit(limit)
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      }));
+    } catch (error) {
+      console.error('Error getting dedications:', error);
+      return [];
+    }
+  },
+
+  // Get all dedications
+  async getAllDedications(limit = 50) {
+    try {
+      const q = query(
+        collection(db, 'musicDedications'),
+        orderBy('createdAt', 'desc'),
+        limit(limit)
+      );
+
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || new Date()
+      }));
+    } catch (error) {
+      console.error('Error getting all dedications:', error);
+      return [];
+    }
+  },
+
+  // Like dedication
+  async likeDedication(dedicationId, userId) {
+    try {
+      const dedicationRef = doc(db, 'musicDedications', dedicationId);
+      await updateDoc(dedicationRef, {
+        likes: increment(1),
+        likedBy: arrayUnion(userId)
+      });
+    } catch (error) {
+      console.error('Error liking dedication:', error);
+      throw error;
+    }
+  }
+};
+
 export default {
   userService,
   gameService,

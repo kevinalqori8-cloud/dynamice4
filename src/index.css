@@ -102,6 +102,53 @@ body {
 #root {
 	font-family: "Poppins", sans-serif;
 }
+/* Tambahkan di index.css atau App.css */
+
+/* Mobile Game Controls */
+@media (max-width: 768px) {
+  .game-container {
+    padding: 1rem;
+  }
+  
+  .game-board {
+    max-width: 100vw;
+    max-height: 60vh;
+  }
+  
+  .mobile-controller {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 50;
+  }
+  
+  .game-card {
+    margin-bottom: 80px; /* Space for mobile controls */
+  }
+  
+  .game-thumbnail {
+    height: 150px;
+  }
+  
+  .game-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Touch-friendly buttons */
+.game-button {
+  min-height: 44px;
+  min-width: 44px;
+  touch-action: manipulation;
+}
+
+/* Prevent zoom on double tap */
+.game-area {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 #KotakPesan::-webkit-scrollbar { width: 6px; }
 #KotakPesan::-webkit-scrollbar-thumb { background: #c084fc; border-radius: 10px; }

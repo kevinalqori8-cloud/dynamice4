@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useUserData } from '../hooks/useFirebaseData';
 import { userService } from '../service/firebaseService';
 
-// 🎮 Enhanced Game Selection with New Games
+// 🎮 Enhanced Game Selection with Thumbnail Focus
 const Game = () => {
   const navigate = useNavigate();
   const { userData } = useUserData();
@@ -12,12 +12,12 @@ const Game = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState({});
 
-  // Enhanced game list with new games
+  // Enhanced game list with proper thumbnails - PATH TETAP SAMA
   const branches = [
-    // Existing Games
+    // PATH SAMA SEPERTI SEBELUMNYA ✓
     {
       label: "FishIt",
-      path: "/game/fishing",
+      path: "/game/fishing",  // ← PATH TETAP SAMA
       color: "from-blue-500 to-cyan-500",
       description: "Gas berburu secret treasure di lautan! 🎣",
       icon: "🐟",
@@ -31,7 +31,7 @@ const Game = () => {
     },
     {
       label: "Dino Runner",
-      path: "/game/dino",
+      path: "/game/dino",  // ← PATH TETAP SAMA
       color: "from-green-400 to-blue-500",
       description: "Request dari RheRhe 🦕",
       icon: "🦕",
@@ -45,7 +45,7 @@ const Game = () => {
     },
     {
       label: "Snake Game",
-      path: "/game/snake",
+      path: "/game/snake",  // ← PATH TETAP SAMA
       color: "from-green-500 to-cyan-500",
       description: "Ular kadut",
       icon: "🐍",
@@ -59,7 +59,7 @@ const Game = () => {
     },
     {
       label: "Space Shooter",
-      path: "/game/spaceshoot",
+      path: "/game/spaceshoot",  // ← PATH TETAP SAMA
       color: "from-purple-500 to-black-500",
       description: "Dor Dor",
       icon: "💥",
@@ -73,7 +73,7 @@ const Game = () => {
     },
     {
       label: "BlockBlast",
-      path: "/game/blockblast",
+      path: "/game/blockblast",  // ← PATH TETAP SAMA
       color: "from-purple-400 to-pink-500",
       description: "Susun blok untuk mencetak poin tertinggi! 🧩",
       icon: "🧩",
@@ -87,7 +87,7 @@ const Game = () => {
     },
     {
       label: "Game Reme",
-      path: "/game/reme",
+      path: "/game/reme",  // ← PATH TETAP SAMA
       color: "from-purple-500 to-indigo-500",
       description: "Tebak angka dengan multiplier menarik! 🎲",
       icon: "🎲",
@@ -101,7 +101,7 @@ const Game = () => {
     },
     {
       label: "Lucky Wheel",
-      path: "/game/luckywheel",
+      path: "/game/luckywheel",  // ← PATH TETAP SAMA
       color: "from-yellow-400 to-orange-500",
       description: "Putar roda keberuntunganmu! 🎡",
       icon: "🎡",
@@ -115,7 +115,7 @@ const Game = () => {
     },
     {
       label: "Mines",
-      path: "/game/mines",
+      path: "/game/mines",  // ← PATH TETAP SAMA
       color: "from-cyan-500 to-blue-500",
       description: "Hindari bom dan temukan harta karun! 💎",
       icon: "💎",
@@ -127,10 +127,9 @@ const Game = () => {
       players: "1 Player",
       duration: "3-10 min"
     },
-    // NEW GAMES
     {
       label: "Memory Card",
-      path: "/game/memory",
+      path: "/game/memory",  // ← PATH TETAP SAMA
       color: "from-indigo-400 to-purple-500",
       description: "Tes ingatan dengan kartu karakter kelas! 🧠",
       icon: "🧠",
@@ -144,7 +143,7 @@ const Game = () => {
     },
     {
       label: "Quiz Challenge",
-      path: "/game/quiz",
+      path: "/game/quiz",  // ← PATH TETAP SAMA
       color: "from-green-400 to-emerald-500",
       description: "Tantang pengetahuanmu dengan quiz seru! 🎯",
       icon: "🎯",
@@ -158,7 +157,7 @@ const Game = () => {
     },
     {
       label: "Tower Defense",
-      path: "/game/towerdefense",
+      path: "/game/towerdefense",  // ← PATH TETAP SAMA
       color: "from-red-400 to-orange-500",
       description: "Defend kelas dari serangan tugas dan PR! 🏰",
       icon: "🏰",
@@ -264,7 +263,7 @@ const Game = () => {
           </div>
         </motion.div>
 
-        {/* Game Grid */}
+        {/* Game Grid dengan Thumbnail Focus */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <AnimatePresence>
             {filteredGames.map((branch, index) => {
@@ -289,23 +288,43 @@ const Game = () => {
                     </div>
                   )}
 
+                  {/* Game Card dengan Thumbnail Focus */}
                   <div
                     className={`bg-gradient-to-br ${branch.color} p-1 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-105`}
                     onClick={() => navigateToGame(branch.path, branch.label)}
                   >
                     <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-6 h-full flex flex-col">
-                      {/* Game Icon */}
-                      <div className="text-center mb-4">
-                        <div className="text-6xl mb-3">{branch.icon}</div>
-                        <h3 className="text-2xl font-bold text-white mb-2">
-                          {branch.label}
-                        </h3>
+                      
+                      {/* Thumbnail Section - FOKUS DISINI */}
+                      <div className="relative mb-4 h-32 rounded-xl overflow-hidden">
+                        {/* Gradient Background */}
+                        <div className={`absolute inset-0 bg-gradient-to-br ${branch.color} opacity-60`}></div>
+                        
+                        {/* Thumbnail Image */}
+                        <div className="relative w-full h-full flex items-center justify-center">
+                          {branch.thumbnail ? (
+                            <img 
+                              src={branch.thumbnail} 
+                              alt={branch.label}
+                              className="w-full h-full object-cover rounded-xl opacity-80 hover:opacity-100 transition-opacity duration-300"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextElementSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          
+                          {/* Fallback - Icon sebagai Thumbnail */}
+                          <div className="absolute inset-0 flex items-center justify-center text-8xl opacity-60">
+                            {branch.icon}
+                          </div>
+                        </div>
+                        
+                        {/* Overlay untuk nama game */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                          <h3 className="text-white font-bold text-lg">{branch.label}</h3>
+                        </div>
                       </div>
-
-                      {/* Game Description */}
-                      <p className="text-gray-300 text-sm mb-4 flex-grow">
-                        {branch.description}
-                      </p>
 
                       {/* Game Info */}
                       <div className="space-y-2 mb-4">
@@ -317,6 +336,10 @@ const Game = () => {
                             {branch.difficulty}
                           </span>
                         </div>
+                        
+                        <p className="text-gray-300 text-sm">
+                          {branch.description}
+                        </p>
                         
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span>👥 {branch.players}</span>
@@ -395,3 +418,4 @@ const Game = () => {
 };
 
 export default Game;
+
