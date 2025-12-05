@@ -1,198 +1,335 @@
-import React, { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, BrowserRouter } from "react-router-dom";
-import Home from "./Pages/Home";
-import Gallery from "./components/Gallery";
-import Tabs from "./Pages/Tabs";
-import Footer from "./Pages/Footer";
-import ChatPage from "./Pages/ChatPage";
-import Navbar from "./components/Navbar";
-import SuggestionBox from "./components/SuggestionBox";
-import ChatMindMap from "./Pages/ChatMindMap";
-import ChatAnonimLocalPage from "./Pages/ChatAnonimLocalPage";
-import SuggestionPage from "./Pages/SuggestionPage";
+// src/App.jsx - VERSI FIXED & OPTIMIZED
+import React, { Suspense, lazy } from "react";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Box, CircularProgress } from "@mui/material";
 import AOS from "aos";
 import "aos/dist/aos.css";
-import ProfilePage from "./Pages/ProfilePage";
-import PortfolioPage from "./Pages/PortfolioPage";
-import Mines from "./Pages/game/Mines";
-import GameReme from "./Pages/game/GameReme";
-import Game from "./Pages/Game";
-import LuckyWheel from "./Pages/game/LuckyWheel";
+
+// 🎯 Layout Components yang proper
+import Navbar from "./components/Navbar";
+import Footer from "./Pages/Footer";
 import { AuthProvider } from "./context/AuthContext";
-import Leaderboard from "./components/Leaderboard";
-import ErrorBoundary from "./components/ErrorBoundary.jsx";
-import DinoRunner from "./Pages/game/DinoRunner.jsx";
-import FishIt from "./Pages/game/FishIt.jsx";
-import BlockBlast from "./Pages/game/BlockBlast.jsx";
-import MemoryCardGame from "./Pages/game/MemoryCardGame.jsx";
-import QuizChallenge from "./Pages/game/QuizChallenge.jsx";
-import TowerDefense from "./Pages/game/TowerDefense.jsx";
-import SnakeGame from "./Pages/game/SnakeGame.jsx";
-import SpaceShooter from "./Pages/game/SpaceShooterGame.jsx";
 
-// 🛡️ Ultra Fixed App Component - No More Errors!
-class UltraErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
+// 🚀 Code Splitting dengan Lazy Loading
+const Home = lazy(() => import("./Pages/Home"));
+const Tabs = lazy(() => import("./Pages/Tabs"));
+const SuggestionBox = lazy(() => import("./components/SuggestionBox"));
+const Gallery = lazy(() => import("./components/Gallery"));
+const ChatPage = lazy(() => import("./Pages/ChatPage"));
+const ChatMindMap = lazy(() => import("./Pages/ChatMindMap"));
+const ChatAnonimLocalPage = lazy(() => import("./Pages/ChatAnonimLocalPage"));
+const ProfilePage = lazy(() => import("./Pages/ProfilePage"));
+const PortfolioPage = lazy(() => import("./Pages/PortfolioPage"));
+const SuggestionPage = lazy(() => import("./Pages/SuggestionPage"));
+const Leaderboard = lazy(() => import("./components/Leaderboard"));
+const Game = lazy(() => import("./Pages/Game"));
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
+// 🎮 Games dengan code splitting
+const FishIt = lazy(() => import("./Pages/game/FishIt.jsx"));
+const DinoRunner = lazy(() => import("./Pages/game/DinoRunner.jsx"));
+const BlockBlast = lazy(() => import("./Pages/game/BlockBlast.jsx"));
+const GameReme = lazy(() => import("./Pages/game/GameReme"));
+const Mines = lazy(() => import("./Pages/game/Mines"));
+const LuckyWheel = lazy(() => import("./Pages/game/LuckyWheel"));
+const MemoryCardGame = lazy(() => import("./Pages/game/MemoryCardGame.jsx"));
+const SnakeGame = lazy(() => import("./Pages/game/SnakeGame.jsx"));
+const SpaceShooter = lazy(() => import("./Pages/game/SpaceShooterGame.jsx"));
+const QuizChallenge = lazy(() => import("./Pages/game/QuizChallenge.jsx"));
+const TowerDefense = lazy(() => import("./Pages/game/TowerDefense.jsx"));
 
-  componentDidCatch(error, errorInfo) {
-    console.error('App Error:', error, errorInfo);
-    this.setState({ error, errorInfo });
-  }
+// 🎯 Enhanced Loading Component
+const LoadingFallback = () => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '60vh',
+      width: '100%',
+      gap: 3,
+    }}
+  >
+    <motion.div
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+    >
+      <CircularProgress 
+        size={60}
+        thickness={4}
+        sx={{
+          color: 'primary.main',
+          '& .MuiCircularProgress-circle': {
+            strokeLinecap: 'round',
+          },
+        }}
+      />
+    </motion.div>
+    
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+    >
+      <Box sx={{ textAlign: 'center' }}>
+        <Box
+          sx={{
+            fontSize: '2rem',
+            mb: 1,
+            display: 'inline-block',
+            animation: 'pulse 2s infinite',
+          }}
+        >
+          🎮
+        </Box>
+        <Box sx={{ color: 'text.secondary', fontWeight: 500 }}>
+          Loading Dynamic E4 Experience...
+        </Box>
+        <Box sx={{ color: 'text.disabled', fontSize: '0.875rem', mt: 1 }}>
+          Preparing your gaming portal
+        </Box>
+      </Box>
+    </motion.div>
+  </Box>
+);
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
-    window.location.reload();
-  };
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white flex items-center justify-center p-4">
-          <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-8 max-w-md w-full text-center">
-            <div className="text-6xl mb-4">🎮</div>
-            <h2 className="text-2xl font-bold mb-4">Oops! Terjadi Kesalahan</h2>
-            <p className="text-gray-300 mb-6">
-              Maaf, terjadi kesalahan dalam aplikasi. Silakan coba lagi.
-            </p>
-            <button 
-              onClick={this.handleReset}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
-            >
-              🔄 Muulai Ulang
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// Layout Component untuk halaman utama
-function HomeLayout() {
-  useEffect(() => {
+// 🏗️ Unified Layout Component
+function AppLayout({ children, showNavbar = true, showFooter = true }) {
+  const location = useLocation();
+  
+  // Initialize AOS hanya sekali
+  React.useEffect(() => {
     AOS.init({ 
       duration: 800, 
       once: true,
       offset: 100,
-      delay: 100
+      delay: 100,
+      easing: 'ease-out-cubic',
     });
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <Navbar />
-      <main>
-        <Home />
-        <Tabs />
-        <SuggestionBox />
-      </main>
-      <Footer />
-    </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Animated background elements */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `
+            radial-gradient(circle at 20% 80%, rgba(138, 43, 226, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(0, 188, 212, 0.05) 0%, transparent 50%)
+          `,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      
+      {/* Content */}
+      <Box sx={{ position: 'relative', zIndex: 1 }}>
+        {showNavbar && <Navbar />}
+        
+        <Box component="main" sx={{ pt: showNavbar ? 16 : 0 }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </Box>
+        
+        {showFooter && <Footer />}
+      </Box>
+    </Box>
   );
 }
 
-// Layout Component untuk halaman dengan Navbar
-function AppLayout({ children }) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      <Navbar />
-      <main className="pt-16">
+// 🎯 Route Components yang organized
+const HomePage = () => (
+  <AppLayout>
+    <Home />
+    <Tabs />
+    <SuggestionBox />
+  </AppLayout>
+);
+
+const GamePage = () => (
+  <AppLayout>
+    <Game />
+  </AppLayout>
+);
+
+const ChatPage = () => (
+  <AppLayout>
+    <ChatPage />
+  </AppLayout>
+);
+
+// 🎮 Game Wrapper dengan proper loading
+const GameWrapper = ({ children, title }) => (
+  <AppLayout showNavbar={true} showFooter={true}>
+    <Box sx={{ py: 4 }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
         {children}
-      </main>
-      <Footer />
-    </div>
-  );
-}
+      </motion.div>
+    </Box>
+  </AppLayout>
+);
 
-// Loading Component
-function LoadingSpinner() {
+// 🚨 404 Component yang proper
+const NotFoundPage = () => {
+  const navigate = useNavigate();
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
-        <p className="text-white text-lg">Loading XE-4 Gaming Portal...</p>
-      </div>
-    </div>
+    <AppLayout>
+      <Box
+        sx={{
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: 3,
+        }}
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 200 }}
+        >
+          <Box sx={{ fontSize: '6rem', mb: 2 }}>🎮</Box>
+        </motion.div>
+        
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Typography
+            variant="h2"
+            component="h1"
+            sx={{
+              fontWeight: 'bold',
+              mb: 2,
+              background: 'linear-gradient(45deg, #8a2be2, #00bcd4)',
+              backgroundClip: 'text',
+              textFillColor: 'transparent',
+            }}
+          >
+            404 - Game Over
+          </Typography>
+          
+          <Typography
+            variant="h6"
+            color="text.secondary"
+            sx={{ mb: 4 }}
+          >
+            Halaman tidak ditemukan atau level belum terbuka!
+          </Typography>
+          
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              onClick={() => navigate(-1)}
+              sx={{
+                background: 'linear-gradient(45deg, #8a2be2, #00bcd4)',
+                color: 'white',
+                px: 4,
+                py: 1.5,
+                borderRadius: 3,
+                fontWeight: 'bold',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #7a1be2, #00acc4)',
+                  transform: 'translateY(-2px)',
+                },
+              }}
+            >
+              ← Kembali
+            </Button>
+            
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/')}
+              sx={{
+                borderColor: '#8a2be2',
+                color: '#8a2be2',
+                px: 4,
+                py: 1.5,
+                borderRadius: 3,
+                fontWeight: 'bold',
+                '&:hover': {
+                  background: 'rgba(138, 43, 226, 0.1)',
+                  borderColor: '#7a1be2',
+                },
+              }}
+            >
+              🏠 Home
+            </Button>
+          </Box>
+        </motion.div>
+      </Box>
+    </AppLayout>
   );
-}
+};
 
-// Main App Component
+// 🎯 Main App Component - CLEAN & OPTIMIZED
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate initial loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
   return (
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Main Routes */}
-            <Route path="/" element={<HomeLayout />} />
-            <Route path="/game" element={<AppLayout><Game /></AppLayout>} />
-            <Route path="/chat" element={<AppLayout><ChatPage /></AppLayout>} />
-            <Route path="/chat-mindmap" element={<AppLayout><ChatMindMap /></AppLayout>} />
-            <Route path="/chat-anonim" element={<AppLayout><ChatAnonimLocalPage /></AppLayout>} />
-            <Route path="/profile" element={<AppLayout><ProfilePage /></AppLayout>} />
-            <Route path="/portfolio" element={<AppLayout><PortfolioPage /></AppLayout>} />
-            <Route path="/suggestion" element={<AppLayout><SuggestionPage /></AppLayout>} />
-            <Route path="/leaderboard" element={<AppLayout><Leaderboard /></AppLayout>} />
-            <Route path="/gallery" element={<AppLayout><Gallery /></AppLayout>} />
-            
-            {/* Game Routes */}
-            <Route path="/game/fishing" element={<AppLayout><FishIt /></AppLayout>} />
-            <Route path="/game/dino" element={<AppLayout><DinoRunner /></AppLayout>} />
-            <Route path="/game/blockblast" element={<AppLayout><BlockBlast /></AppLayout>} />
-            <Route path="/game/reme" element={<AppLayout><GameReme /></AppLayout>} />
-            <Route path="/game/mines" element={<AppLayout><Mines /></AppLayout>} />
-            <Route path="/game/luckywheel" element={<AppLayout><LuckyWheel /></AppLayout>} />
-            
-            {/* New Games */}
-            <Route path="/game/memory" element={<AppLayout><MemoryCardGame /></AppLayout>} />
-	<Route path="/game/snake" element={<AppLayout><SnakeGame /></AppLayout>} />
-	<Route path="/game/spaceshoot" element={<AppLayout><SpaceShooter /></AppLayout>} />
-            <Route path="/game/quiz" element={<AppLayout><QuizChallenge /></AppLayout>} />
-            <Route path="/game/towerdefense" element={<AppLayout><TowerDefense /></AppLayout>} />
-            
-            {/* Catch all route */}
-            <Route path="*" element={
-              <AppLayout>
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-4">404</h1>
-                    <p className="text-xl mb-4">Halaman tidak ditemukan</p>
-                    <button 
-                      onClick={() => window.history.back()}
-                      className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg"
-                    >
-                      Kembali
-                    </button>
-                  </div>
-                </div>
-              </AppLayout>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+    <AuthProvider>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          {/* Main Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/game" element={<GamePage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat-mindmap" element={<AppLayout><ChatMindMap /></AppLayout>} />
+          <Route path="/chat-anonim" element={<AppLayout><ChatAnonimLocalPage /></AppLayout>} />
+          <Route path="/profile" element={<AppLayout><ProfilePage /></AppLayout>} />
+          <Route path="/portfolio" element={<AppLayout><PortfolioPage /></AppLayout>} />
+          <Route path="/suggestion" element={<AppLayout><SuggestionPage /></AppLayout>} />
+          <Route path="/leaderboard" element={<AppLayout><Leaderboard /></AppLayout>} />
+          <Route path="/gallery" element={<AppLayout><Gallery /></AppLayout>} />
+          
+          {/* Game Routes dengan proper code splitting */}
+          <Route path="/game/fishing" element={<GameWrapper><FishIt /></GameWrapper>} />
+          <Route path="/game/dino" element={<GameWrapper><DinoRunner /></GameWrapper>} />
+          <Route path="/game/blockblast" element={<GameWrapper><BlockBlast /></GameWrapper>} />
+          <Route path="/game/reme" element={<GameWrapper><GameReme /></GameWrapper>} />
+          <Route path="/game/mines" element={<GameWrapper><Mines /></GameWrapper>} />
+          <Route path="/game/luckywheel" element={<GameWrapper><LuckyWheel /></GameWrapper>} />
+          <Route path="/game/memory" element={<GameWrapper><MemoryCardGame /></GameWrapper>} />
+          <Route path="/game/snake" element={<GameWrapper><SnakeGame /></GameWrapper>} />
+          <Route path="/game/spaceshoot" element={<GameWrapper><SpaceShooter /></GameWrapper>} />
+          <Route path="/game/quiz" element={<GameWrapper><QuizChallenge /></GameWrapper>} />
+          <Route path="/game/towerdefense" element={<GameWrapper><TowerDefense /></GameWrapper>} />
+          
+          {/* 404 Route */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
   );
 }
 
 export default App;
+
