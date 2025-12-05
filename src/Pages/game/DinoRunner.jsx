@@ -1,18 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Button,
-  Typography,
-  Box,
-  Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-  CircularProgress,
-  TextField
-} from '@mui/material';
+import { Button, Typography, Box, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Chip, CircularProgress, TextField } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useUserData } from '../../hooks/useFirebaseData';
 import { userService } from '../../service/firebaseService';
@@ -21,40 +9,27 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-// Di setiap game component, tambahkan ini:
-import { safeCharAt, safeGet, safeCall } from '../SafeGameWrapper';
 
-// Ganti semua: nama.charAt(0) 
-// Menjadi: safeCharAt(nama, 0)
-
-// Ganti semua: obj.properti.nested
-// Menjadi: safeGet(obj, 'properti.nested', 'default')
-
-// Ganti semua: functionCall()
-// Menjadi: safeCall(functionCall)
-
-// 🎯 Tema konsisten dengan game lain
+// 🦕 Enhanced Dino Runner - Optimized and Bug Fixed
 const DinoRunner = () => {
   const navigate = useNavigate();
+  const { userData } = useUserData();
+  const gameAreaRef = useRef(null);
+  
+  // Game optimization hook
+  const { fps, isMobile, batterySaving, trackGameEvent } = useGameOptimization('dinorunner');
+  
+  // Game states
+  const [gameState, setGameState] = useState('menu'); // menu, playing, paused, completed, failed
   const [playerName, setPlayerName] = useState("");
   const [showNameInput, setShowNameInput] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Game optimization hook
-  const { 
-    fps, 
-    isMobile, 
-    batterySaving, 
-    trackGameEvent,
-    startFishing // Touch gesture support
-  } = useGameOptimization('dinorunner');
-  
-  // Game states
-  const [gameState, setGameState] = useState('ready');
+  // Game variables
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
-  const [speed, setSpeed] = useState(5);
   const [gameSpeed, setGameSpeed] = useState(1);
+  const [distance, setDistance] = useState(0);
   
   // Dino states
   const [dinoY, setDinoY] = useState(300);
@@ -62,779 +37,620 @@ const DinoRunner = () => {
   const [isJumping, setIsJumping] = useState(false);
   const [isDucking, setIsDucking] = useState(false);
   
-  // Obstacles and clouds
+  // Game objects
   const [obstacles, setObstacles] = useState([]);
   const [clouds, setClouds] = useState([]);
+  const [stars, setStars] = useState([]);
+  const [particles, setParticles] = useState([]);
   
-  // Game constants
-  const GROUND_Y = 300;
-  const JUMP_FORCE = -15;
-  const GRAVITY = 0.8;
-  const GAME_WIDTH = 800;
+  // Game settings
   const GAME_HEIGHT = 400;
+  const GROUND_Y = 350;
+  const DINO_X = 100;
+  const GRAVITY = 0.8;
+  const JUMP_FORCE = -15;
+  
+  // Obstacle types
+  const obstacleTypes = [
+    { width: 30, height: 50, color: 'bg-red-500', type: 'cactus_small', points: 10 },
+    { width: 40, height: 70, color: 'bg-red-600', type: 'cactus_large', points: 15 },
+    { width: 60, height: 30, color: 'bg-gray-600', type: 'bird', points: 20, flying: true }
+  ];
 
-  const { data: userData } = useUserData(playerName || "guest");
-  const money = userData?.money || 0;
+  // Initialize game
+  const initializeGame = useCallback(() => {
+    setGameState('playing');
+    setScore(0);
+    setDistance(0);
+    setGameSpeed(1);
+    setDinoY(GROUND_Y - 50);
+    setDinoVelocityY(0);
+    setIsJumping(false);
+    setIsDucking(false);
+    setObstacles([]);
+    setParticles([]);
+    
+    // Track game start
+    trackGameEvent('game_start', { game: 'dinorunner' });
+    
+    // Load high score
+    if (userData?.uid) {
+      const savedHighScore = localStorage.getItem(`dino_highscore_${userData.uid}`);
+      setHighScore(parseInt(savedHighScore) || 0);
+    }
+  }, [userData, trackGameEvent]);
 
-  // 🎯 FIX: Initialization dengan proper error handling
-  useEffect(() => {
-    const initializeGame = async () => {
-      try {
-        setLoading(true);
-        
-        // Load saved progress
-        const savedName = localStorage.getItem('dino_player_name');
-        if (savedName) {
-          setPlayerName(savedName);
-          setShowNameInput(false);
-        } else {
-          setShowNameInput(true);
-        }
-        
-        const savedHighScore = parseInt(localStorage.getItem('dino_high_score') || '0');
-        setHighScore(savedHighScore);
-        
-        trackGameEvent('game_initialized', { 
-          has_saved_name: !!savedName,
-          high_score: savedHighScore 
-        });
-        
-      } catch (error) {
-        console.error('Initialization error:', error);
-        trackGameEvent('initialization_error', { error: error.message });
-        // Fallback values
-        setPlayerName("Guest");
-        setHighScore(0);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Handle jump
+  const jump = useCallback(() => {
+    if (!isJumping && dinoY >= GROUND_Y - 60) {
+      setDinoVelocityY(JUMP_FORCE);
+      setIsJumping(true);
+      trackGameEvent('jump', { game: 'dinorunner' });
+    }
+  }, [isJumping, dinoY, trackGameEvent]);
 
-    initializeGame();
+  // Handle duck
+  const duck = useCallback((isDucking) => {
+    setIsDucking(isDucking);
+    if (isDucking) {
+      trackGameEvent('duck', { game: 'dinorunner' });
+    }
   }, [trackGameEvent]);
 
-  // 🎯 FIX: Proper name save dengan validation
-  const savePlayerName = async (name) => {
-    if (!name?.trim()) {
-      alert('Nama tidak boleh kosong!');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const cleanName = name.trim().slice(0, 20);
-      
-      setPlayerName(cleanName);
-      localStorage.setItem('dino_player_name', cleanName);
-      setShowNameInput(false);
-      
-      trackGameEvent('player_name_set', { name_length: cleanName.length });
-      
-      // Save to Firebase
-      await userService.saveUserData(cleanName, {
-        nama: cleanName,
-        money: money || 1000,
-        achievements: []
-      });
-      
-    } catch (error) {
-      console.error('Save player error:', error);
-      trackGameEvent('save_player_error', { error: error.message });
-      alert('Gagal menyimpan data pemain. Silakan coba lagi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🎯 FIX: Game loop dengan proper cleanup
+  // Keyboard controls
   useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    let animationId;
-    
-    const gameLoop = () => {
-      try {
-        // Physics calculations
-        setDinoVelocityY(prev => prev + GRAVITY);
-        setDinoY(prev => {
-          const newY = prev + dinoVelocityY;
-          if (newY >= GROUND_Y) {
-            setDinoVelocityY(0);
-            setIsJumping(false);
-            return GROUND_Y;
-          }
-          return newY;
-        });
-
-        // Move obstacles
-        setObstacles(prev => {
-          const updated = prev.map(obs => ({
-            ...obs,
-            x: obs.x - speed * gameSpeed
-          })).filter(obs => obs.x > -100);
-
-          // Add new obstacles
-          if (updated.length === 0 || updated[updated.length - 1].x < GAME_WIDTH - 300) {
-            const obstacleType = Math.random() > 0.5 ? 'bird' : 'cactus';
-            updated.push({
-              id: Date.now() + Math.random(),
-              x: GAME_WIDTH,
-              y: obstacleType === 'bird' ? GROUND_Y - 100 : GROUND_Y - 40,
-              type: obstacleType,
-              width: obstacleType === 'bird' ? 40 : 30,
-              height: obstacleType === 'bird' ? 30 : 40
-            });
-          }
-
-          return updated;
-        });
-
-        // Move clouds
-        setClouds(prev => {
-          const updated = prev.map(cloud => ({
-            ...cloud,
-            x: cloud.x - 1
-          })).filter(cloud => cloud.x > -100);
-
-          if (Math.random() < 0.01) {
-            updated.push({
-              id: Date.now() + Math.random(),
-              x: GAME_WIDTH,
-              y: Math.random() * 150 + 50,
-              size: Math.random() * 30 + 20
-            });
-          }
-
-          return updated;
-        });
-
-        // Update game speed and score
-        setGameSpeed(prev => Math.min(prev + 0.001, 3));
-        setScore(prev => prev + 1);
-        setSpeed(prev => Math.min(prev + 0.01, 15));
-
-      } catch (error) {
-        console.error('Game loop error:', error);
-        trackGameEvent('game_loop_error', { error: error.message });
-      }
+    const handleKeyDown = (e) => {
+      if (gameState !== 'playing') return;
       
-      animationId = requestAnimationFrame(gameLoop);
-    };
-
-    animationId = requestAnimationFrame(gameLoop);
-
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-      }
-    };
-  }, [gameState, dinoVelocityY, speed, gameSpeed, trackGameEvent]);
-
-  // 🎯 FIX: Collision detection yang reliable
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    const checkCollisions = () => {
-      try {
-        const dinoRect = {
-          x: 100,
-          y: isDucking ? dinoY + 20 : dinoY,
-          width: isDucking ? 60 : 40,
-          height: isDucking ? 30 : 60
-        };
-
-        const collision = obstacles.some(obs => {
-          return (
-            dinoRect.x < obs.x + obs.width &&
-            dinoRect.x + dinoRect.width > obs.x &&
-            dinoRect.y < obs.y + obs.height &&
-            dinoRect.y + dinoRect.height > obs.y
-          );
-        });
-
-        if (collision) {
-          handleGameOver();
-        }
-      } catch (error) {
-        console.error('Collision check error:', error);
-        trackGameEvent('collision_error', { error: error.message });
-      }
-    };
-
-    const collisionInterval = setInterval(checkCollisions, 16);
-    return () => clearInterval(collisionInterval);
-  }, [obstacles, dinoY, isDucking, gameState]);
-
-  // 🎯 FIX: Game over handler yang proper
-  const handleGameOver = useCallback(() => {
-    setGameState('over');
-    
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem('dino_high_score', score.toString());
-      
-      const reward = Math.floor(score / 10);
-      if (playerName && reward > 0) {
-        userService.updateMoney(playerName, money + reward)
-          .catch(error => {
-            console.error('Failed to update money:', error);
-            trackGameEvent('reward_update_failed', { error: error.message });
-          });
-      }
-    }
-    
-    trackGameEvent('game_over', { 
-      score: score,
-      high_score: score > highScore 
-    });
-  }, [score, highScore, playerName, money, trackGameEvent]);
-
-  // 🎯 FIX: Controls dengan prevent default yang benar
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    const handleKeyPress = (e) => {
-      // Prevent default untuk prevent scroll
-      if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault();
-      }
-
-      switch (e.key) {
-        case ' ':
+      switch(e.code) {
+        case 'Space':
         case 'ArrowUp':
-        case 'w':
-        case 'W':
-          if (!isJumping && dinoY >= GROUND_Y) {
-            setDinoVelocityY(JUMP_FORCE);
-            setIsJumping(true);
-          }
+          e.preventDefault();
+          jump();
           break;
         case 'ArrowDown':
-        case 's':
-        case 'S':
-          setIsDucking(true);
+          e.preventDefault();
+          duck(true);
           break;
       }
     };
 
     const handleKeyUp = (e) => {
-      if (['ArrowDown', 's', 'S'].includes(e.key)) {
-        setIsDucking(false);
+      if (e.code === 'ArrowDown') {
+        duck(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
+    window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-
+    
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
+      window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameState, isJumping, dinoY, GROUND_Y]);
+  }, [gameState, jump, duck]);
 
-  // 🎯 FIX: Game start dengan proper state management
-  const startGame = useCallback(() => {
-    // Reset all game states
-    setGameState('playing');
-    setScore(0);
-    setSpeed(5);
-    setGameSpeed(1);
-    setObstacles([])
-    setClouds([])
-    setDinoY(GROUND_Y);
-    setDinoVelocityY(0);
-    setIsJumping(false);
-    setIsDucking(false);
+  // Touch controls for mobile
+  useEffect(() => {
+    if (!isMobile) return;
     
-    trackGameEvent('game_started');
-  }, [GROUND_Y, trackGameEvent]);
-
-  const resetGame = useCallback(() => {
-    setGameState('ready');
-    setScore(0);
-    setSpeed(5);
-    setGameSpeed(1);
-    setObstacles([]);
-    setClouds([]);
-    setDinoY(GROUND_Y);
-    setDinoVelocityY(0);
-    setIsJumping(false);
-    setIsDucking(false);
-  }, [GROUND_Y]);
-
-  // Loading state
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-        }}
-      >
-        <CircularProgress size={60} sx={{ color: 'white', mb: 3 }} />
-        <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
-          Loading Dino Runner...
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-          Preparing your prehistoric adventure
-        </Typography>
-      </Box>
-    );
-  }
-
-  // 🎯 TEMA KONSISTEN: Gradiente ungu-biru seperti game lainnya
-  return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 4,
-        position: 'relative',
-      }}
-    >
-      {/* Performance Indicator */}
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 16,
-          right: 16,
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          color: 'white',
-          px: 2,
-          py: 1,
-          borderRadius: 2,
-          fontSize: '12px',
-        }}
-      >
-        FPS: {fps} {batterySaving && '🔋'}
-      </Box>
+    const handleTouchStart = (e) => {
+      if (gameState !== 'playing') return;
       
-      {/* Name Input Modal */}
-      <AnimatePresence>
-        {showNameInput && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 50,
-            }}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              style={{
-                backgroundColor: 'white',
-                borderRadius: '16px',
-                padding: '32px',
-                maxWidth: '400px',
-                width: '100%',
-                margin: '16px',
-              }}
+      const touch = e.touches[0];
+      const gameArea = gameAreaRef.current;
+      if (!gameArea) return;
+      
+      const rect = gameArea.getBoundingClientRect();
+      const touchY = touch.clientY - rect.top;
+      
+      if (touchY < GAME_HEIGHT / 2) {
+        jump();
+      } else {
+        duck(true);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      duck(false);
+    };
+
+    const gameArea = gameAreaRef.current;
+    if (gameArea) {
+      gameArea.addEventListener('touchstart', handleTouchStart);
+      gameArea.addEventListener('touchend', handleTouchEnd);
+    }
+    
+    return () => {
+      if (gameArea) {
+        gameArea.removeEventListener('touchstart', handleTouchStart);
+        gameArea.removeEventListener('touchend', handleTouchEnd);
+      }
+    };
+  }, [gameState, isMobile, jump, duck]);
+
+  // Game loop
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    const gameLoop = setInterval(() => {
+      // Update dino physics
+      setDinoY(prevY => {
+        const newY = prevY + dinoVelocityY;
+        setDinoVelocityY(prevVel => {
+          const newVel = prevVel + GRAVITY;
+          if (newY >= GROUND_Y - (isDucking ? 30 : 50)) {
+            setIsJumping(false);
+            return 0;
+          }
+          return newVel;
+        });
+        return Math.min(newY, GROUND_Y - (isDucking ? 30 : 50));
+      });
+
+      // Update distance and score
+      setDistance(prev => prev + gameSpeed);
+      setScore(prev => Math.floor(distance / 10));
+
+      // Increase game speed
+      setGameSpeed(prev => Math.min(prev + 0.001, 3));
+
+      // Spawn obstacles
+      setObstacles(prev => {
+        let newObstacles = prev.filter(obs => obs.x > -100);
+        
+        if (Math.random() < 0.02 * gameSpeed) {
+          const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+          newObstacles.push({
+            id: Date.now() + Math.random(),
+            x: 800,
+            y: type.flying ? GROUND_Y - 100 - Math.random() * 100 : GROUND_Y - type.height,
+            ...type,
+            passed: false
+          });
+        }
+        
+        return newObstacles.map(obs => ({
+          ...obs,
+          x: obs.x - 5 * gameSpeed
+        }));
+      });
+
+      // Spawn clouds and stars
+      setClouds(prev => {
+        let newClouds = prev.filter(cloud => cloud.x > -100);
+        if (Math.random() < 0.01) {
+          newClouds.push({
+            id: Date.now(),
+            x: 800,
+            y: 50 + Math.random() * 100,
+            speed: 0.5 + Math.random() * 0.5,
+            size: 20 + Math.random() * 30
+          });
+        }
+        return newClouds.map(cloud => ({ ...cloud, x: cloud.x - cloud.speed }));
+      });
+
+      setStars(prev => {
+        let newStars = prev.filter(star => star.x > -10);
+        if (Math.random() < 0.005) {
+          newStars.push({
+            id: Date.now(),
+            x: 800,
+            y: Math.random() * 200,
+            speed: 1 + Math.random() * 2
+          });
+        }
+        return newStars.map(star => ({ ...star, x: star.x - star.speed }));
+      });
+
+      // Create particles
+      setParticles(prev => {
+        let newParticles = prev.filter(p => p.life > 0);
+        if (Math.random() < 0.1) {
+          newParticles.push({
+            id: Date.now(),
+            x: DINO_X + 20,
+            y: dinoY + 25,
+            vx: -2 - Math.random() * 2,
+            vy: -1 - Math.random() * 2,
+            life: 30
+          });
+        }
+        return newParticles.map(p => ({
+          ...p,
+          x: p.x + p.vx,
+          y: p.y + p.vy,
+          life: p.life - 1
+        }));
+      });
+
+      // Check collisions
+      setObstacles(prev => {
+        return prev.map(obs => {
+          if (obs.passed) return obs;
+          
+          const dinoHeight = isDucking ? 30 : 50;
+          const collision = 
+            DINO_X < obs.x + obs.width &&
+            DINO_X + 40 > obs.x &&
+            dinoY < obs.y + obs.height &&
+            dinoY + dinoHeight > obs.y;
+          
+          if (collision) {
+            setGameState('failed');
+            trackGameEvent('game_over', { game: 'dinorunner', score });
+            return { ...obs, passed: true };
+          }
+          
+          if (obs.x < DINO_X && !obs.passed) {
+            setScore(prev => prev + obs.points);
+            return { ...obs, passed: true };
+          }
+          
+          return obs;
+        });
+      });
+    }, 50);
+
+    return () => clearInterval(gameLoop);
+  }, [gameState, dinoY, dinoVelocityY, isDucking, gameSpeed, distance, score, trackGameEvent]);
+
+  // Save high score
+  useEffect(() => {
+    if (gameState === 'failed' && score > highScore && userData?.uid) {
+      setHighScore(score);
+      localStorage.setItem(`dino_highscore_${userData.uid}`, score.toString());
+      
+      // Save to leaderboard
+      userService.addScore(userData.uid, 'dinorunner', score);
+    }
+  }, [gameState, score, highScore, userData]);
+
+  const resetGame = () => {
+    setGameState('menu');
+    setShowNameInput(false);
+    setPlayerName("");
+  };
+
+  const startGame = () => {
+    if (playerName.trim()) {
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        initializeGame();
+      }, 1000);
+    } else {
+      setShowNameInput(true);
+    }
+  };
+
+  // Render menu
+  if (gameState === 'menu') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <motion.h1 
+              className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <Typography variant="h5" align="center" gutterBottom sx={{ fontWeight: 'bold', color: '#8a2be2' }}>
-                🦕 Dino Runner
-              </Typography>
-              <Typography variant="body1" align="center" paragraph>
-                Masukkan nama Anda untuk mulai bermain!
+              🦕 Dino Runner
+            </motion.h1>
+            <p className="text-xl text-gray-300">Lari dari kejaran waktu dan rintangan!</p>
+          </div>
+
+          {/* Game Stats */}
+          {userData && (
+            <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8">
+              <Typography variant="h6" className="mb-4 text-center">📊 Statistik Kamu</Typography>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <Typography variant="h4" className="text-purple-400">{userData.gameStats?.dinorunner?.gamesPlayed || 0}</Typography>
+                  <Typography variant="body2" className="text-gray-400">Games Played</Typography>
+                </div>
+                <div className="text-center">
+                  <Typography variant="h4" className="text-blue-400">{highScore}</Typography>
+                  <Typography variant="body2" className="text-gray-400">High Score</Typography>
+                </div>
+                <div className="text-center">
+                  <Typography variant="h4" className="text-green-400">{userData.gameStats?.dinorunner?.bestDistance || 0}m</Typography>
+                  <Typography variant="body2" className="text-gray-400">Best Distance</Typography>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Controls Info */}
+          <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8">
+            <Typography variant="h6" className="text-white text-center mb-4">🎮 Kontrol</Typography>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="text-center">
+                <ArrowUpwardIcon className="text-4xl text-blue-400 mb-2" />
+                <Typography variant="body1" className="text-white">Lompat</Typography>
+                <Typography variant="body2" className="text-gray-400">Space / Up Arrow / Tap atas</Typography>
+              </div>
+              <div className="text-center">
+                <ArrowDownwardIcon className="text-4xl text-green-400 mb-2" />
+                <Typography variant="body1" className="text-white">Merunduk</Typography>
+                <Typography variant="body2" className="text-gray-400">Down Arrow / Tap bawah</Typography>
+              </div>
+            </div>
+          </div>
+
+          {/* Name Input */}
+          {showNameInput && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8"
+            >
+              <Typography variant="h6" className="text-white text-center mb-4">
+                Siapa nama kamu?
               </Typography>
               <TextField
                 fullWidth
-                placeholder="Nama Pemain"
                 variant="outlined"
-                sx={{ mb: 3 }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && e.target.value.trim()) {
-                    savePlayerName(e.target.value.trim());
-                  }
-                }}
-                disabled={loading}
-              />
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={() => {
-                  const input = document.querySelector('input');
-                  if (input?.value.trim()) {
-                    savePlayerName(input.value.trim());
-                  }
-                }}
-                disabled={loading}
+                placeholder="Masukkan nama kamu..."
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="mb-4"
                 sx={{
-                  background: 'linear-gradient(45deg, #8a2be2, #00bcd4)',
-                  color: 'white',
-                  fontWeight: 'bold',
-                }}
-              >
-                {loading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : 'Mulai Bermain'}
-              </Button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Header */}
-      {playerName && (
-        <motion.div
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          style={{
-            width: '100%',
-            maxWidth: '1200px',
-            marginBottom: '16px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            color: 'white',
-          }}
-        >
-          <Button
-            onClick={() => navigate(-1)}
-            sx={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' },
-            }}
-          >
-            ← Kembali
-          </Button>
-          <Box textAlign="center">
-            <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'white' }}>
-              🦕 Dino Runner
-            </Typography>
-            <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-              Score: {score} | High: {highScore}
-            </Typography>
-          </Box>
-          <Box textAlign="right">
-            <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-              Player: {playerName}
-            </Typography>
-            <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-              Money: Rp {money.toLocaleString()}
-            </Typography>
-          </Box>
-        </motion.div>
-      )}
-
-      {/* Main Game Area */}
-      {playerName && (
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          style={{
-            position: 'relative',
-            background: 'linear-gradient(to bottom, #87CEEB, #98FB98)',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          {/* Game Canvas */}
-          <div
-            style={{
-              width: GAME_WIDTH,
-              height: GAME_HEIGHT,
-              position: 'relative',
-            }}
-          >
-            {/* Clouds */}
-            {clouds.map(cloud => (
-              <motion.div
-                key={cloud.id}
-                style={{
-                  position: 'absolute',
-                  left: cloud.x,
-                  top: cloud.y,
-                  width: cloud.size,
-                  height: cloud.size * 0.6,
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  borderRadius: '50%',
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    '& fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.5)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#8a2be2',
+                    },
+                  },
                 }}
               />
-            ))}
+            </motion.div>
+          )}
 
-            {/* Ground */}
+          {/* Start Button */}
+          <div className="text-center">
+            <Button
+              variant="contained"
+              size="large"
+              onClick={startGame}
+              disabled={loading}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold"
+            >
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                '▶️ Mulai Bermain'
+              )}
+            </Button>
+          </div>
+
+          {/* Back Button */}
+          <div className="text-center mt-4">
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/game')}
+              className="text-white border-white hover:bg-white hover:text-purple-900"
+            >
+              ← Kembali ke Games
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render game
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Game UI */}
+        <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outlined"
+              onClick={resetGame}
+              className="text-white border-white hover:bg-white hover:text-purple-900"
+              startIcon={<RefreshIcon />}
+            >
+              Menu
+            </Button>
+            
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <Typography variant="h6" className="text-purple-400">
+                  Score: {score}
+                </Typography>
+              </div>
+              <div className="text-center">
+                <Typography variant="h6" className="text-blue-400">
+                  High: {highScore}
+                </Typography>
+              </div>
+              <div className="text-center">
+                <Typography variant="h6" className="text-green-400">
+                  {Math.floor(distance)}m
+                </Typography>
+              </div>
+            </div>
+            
+            <Chip 
+              label={`FPS: ${fps}`} 
+              color={fps >= 50 ? "success" : fps >= 30 ? "warning" : "error"}
+            />
+          </div>
+        </div>
+
+        {/* Game Area */}
+        <div 
+          ref={gameAreaRef}
+          className="relative bg-gradient-to-b from-blue-400 to-green-400 rounded-2xl overflow-hidden"
+          style={{ 
+            height: GAME_HEIGHT,
+            cursor: 'pointer',
+            touchAction: 'none'
+          }}
+        >
+          {/* Background elements */}
+          {clouds.map(cloud => (
             <div
+              key={cloud.id}
+              className="absolute text-4xl opacity-70"
               style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: GAME_HEIGHT - GROUND_Y,
-                backgroundColor: '#228B22',
+                left: cloud.x,
+                top: cloud.y,
+                fontSize: cloud.size
+              }}
+            >
+              ☁️
+            </div>
+          ))}
+          
+          {stars.map(star => (
+            <div
+              key={star.id}
+              className="absolute text-yellow-300 animate-pulse"
+              style={{
+                left: star.x,
+                top: star.y,
+                fontSize: 12
+              }}
+            >
+              ⭐
+            </div>
+          ))}
+
+          {/* Ground */}
+          <div 
+            className="absolute bottom-0 w-full bg-gradient-to-t from-green-600 to-green-500"
+            style={{ height: GAME_HEIGHT - GROUND_Y }}
+          />
+
+          {/* Dino */}
+          <motion.div
+            className="absolute flex items-center justify-center"
+            style={{
+              left: DINO_X,
+              top: dinoY,
+              width: 40,
+              height: isDucking ? 30 : 50
+            }}
+            animate={{
+              scaleY: isDucking ? 0.6 : 1
+            }}
+            transition={{ duration: 0.1 }}
+          >
+            <span className="text-4xl">
+              {isDucking ? '🦕' : '🦖'}
+            </span>
+          </motion.div>
+
+          {/* Obstacles */}
+          {obstacles.map(obstacle => (
+            <div
+              key={obstacle.id}
+              className={`absolute rounded ${obstacle.color} flex items-center justify-center`}
+              style={{
+                left: obstacle.x,
+                top: obstacle.y,
+                width: obstacle.width,
+                height: obstacle.height
+              }}
+            >
+              {obstacle.type.includes('cactus') && <span className="text-2xl">🌵</span>}
+              {obstacle.type === 'bird' && <span className="text-2xl">🦅</span>}
+            </div>
+          ))}
+
+          {/* Particles */}
+          {particles.map(particle => (
+            <div
+              key={particle.id}
+              className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+              style={{
+                left: particle.x,
+                top: particle.y,
+                opacity: particle.life / 30
               }}
             />
+          ))}
 
-            {/* Dino */}
-            <motion.div
-              style={{
-                position: 'absolute',
-                left: 100,
-                top: isDucking ? dinoY + 20 : dinoY,
-                width: isDucking ? 60 : 40,
-                height: isDucking ? 30 : 60,
-              }}
-              animate={{
-                scaleY: isJumping ? 0.8 : 1,
-                rotate: isJumping ? -10 : 0,
-              }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: '#2E8B57',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                }}
-              >
-                🦕
-              </div>
-            </motion.div>
-
-            {/* Obstacles */}
-            {obstacles.map(obs => (
+          {/* Game Over Overlay */}
+          <AnimatePresence>
+            {gameState === 'failed' && (
               <motion.div
-                key={obs.id}
-                style={{
-                  position: 'absolute',
-                  left: obs.x,
-                  top: obs.y,
-                  width: obs.width,
-                  height: obs.height,
-                }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/50 flex items-center justify-center"
               >
-                {obs.type === 'cactus' ? (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      backgroundColor: '#228B22',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                    }}
-                  >
-                    🌵
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      backgroundColor: '#FFD700',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '16px',
-                    }}
-                  >
-                    🦅
-                  </div>
-                )}
-              </motion.div>
-            ))}
-
-            {/* Game Over Overlay */}
-            <AnimatePresence>
-              {gameState === 'over' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Paper
-                    elevation={10}
-                    sx={{
-                      p: 4,
-                      textAlign: 'center',
-                      borderRadius: 4,
-                      background: 'rgba(255, 255, 255, 0.95)',
-                    }}
-                  >
-                    <Typography variant="h4" gutterBottom>
-                      💥 Game Over!
-                    </Typography>
-                    <Typography variant="h6" gutterBottom>
-                      Score: {score}
-                    </Typography>
-                    {score === highScore && score > 0 && (
-                      <Typography variant="body1" color="success.main" gutterBottom>
-                        🎉 New High Score! +Rp {Math.floor(score / 10)}
-                      </Typography>
-                    )}
-                    <Box display="flex" gap={2} justifyContent="center" mt={3}>
-                      <Button
-                        variant="contained"
-                        onClick={startGame}
-                        startIcon={<RefreshIcon />}
-                        sx={{
-                          background: 'linear-gradient(45deg, #4CAF50, #45a049)',
-                        }}
-                      >
-                        Main Lagi
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={resetGame}
-                      >
-                        Kembali
-                      </Button>
-                    </Box>
-                  </Paper>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Ready State */}
-            {gameState === 'ready' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Paper
-                  elevation={10}
-                  sx={{
-                    p: 4,
-                    textAlign: 'center',
-                    borderRadius: 4,
-                    background: 'rgba(255, 255, 255, 0.9)',
-                  }}
-                >
-                  <Typography variant="h4" gutterBottom sx={{ color: '#8a2be2', fontWeight: 'bold' }}>
-                    🦕 Dino Runner
+                <div className="text-center">
+                  <div className="text-6xl mb-4">💥</div>
+                  <Typography variant="h4" className="text-white font-bold mb-2">
+                    Game Over!
                   </Typography>
-                  <Typography variant="body1" paragraph>
-                    Gunakan SPACEBAR/↑ untuk lompat<br />
-                    ↓ untuk bungkuk
+                  <Typography variant="h6" className="text-gray-300 mb-4">
+                    Score: {score} | Distance: {Math.floor(distance)}m
                   </Typography>
                   <Button
                     variant="contained"
-                    onClick={startGame}
-                    size="large"
-                    sx={{
-                      background: 'linear-gradient(45deg, #8a2be2, #00bcd4)',
-                      color: 'white',
-                      fontWeight: 'bold',
-                    }}
+                    onClick={initializeGame}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                    startIcon={<RefreshIcon />}
                   >
-                    Mulai Bermain
+                    Main Lagi
                   </Button>
-                </Paper>
-              </div>
+                </div>
+              </motion.div>
             )}
+          </AnimatePresence>
+        </div>
+
+        {/* Mobile Controls */}
+        {isMobile && (
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <Button
+              variant="outlined"
+              onTouchStart={jump}
+              className="bg-black/30 text-white border-white/50 py-4"
+              startIcon={<ArrowUpwardIcon />}
+            >
+              Lompat
+            </Button>
+            <Button
+              variant="outlined"
+              onTouchStart={() => duck(true)}
+              onTouchEnd={() => duck(false)}
+              className="bg-black/30 text-white border-white/50 py-4"
+              startIcon={<ArrowDownwardIcon />}
+            >
+              Merunduk
+            </Button>
           </div>
-        </motion.div>
-      )}
+        )}
 
-      {/* Controls Info */}
-      {playerName && gameState === 'playing' && (
-        <motion.div
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          style={{
-            marginTop: '16px',
-            color: 'white',
-            textAlign: 'center',
-          }}
-        >
-          <Box display="flex" gap={2} justifyContent="center">
-            <Chip icon={<ArrowUpwardIcon />} label="Lompat" color="primary" />
-            <Chip icon={<ArrowDownwardIcon />} label="Bungkuk" color="secondary" />
-            <Chip label={`Speed: ${gameSpeed.toFixed(1)}x`} color="success" />
-          </Box>
-        </motion.div>
-      )}
-
-      {/* Mobile Touch Controls */}
-      {isMobile && (
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 16,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: 2,
-          }}
-        >
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (!isJumping && dinoY >= GROUND_Y) {
-                setDinoVelocityY(JUMP_FORCE);
-                setIsJumping(true);
-              }
-            }}
-            sx={{
-              minWidth: '60px',
-              minHeight: '60px',
-              borderRadius: '50%',
-              background: 'linear-gradient(45deg, #8a2be2, #00bcd4)',
-            }}
-          >
-            <ArrowUpwardIcon />
-          </Button>
-          <Button
-            variant="contained"
-            onMouseDown={() => setIsDucking(true)}
-            onMouseUp={() => setIsDucking(false)}
-            onTouchStart={() => setIsDucking(true)}
-            onTouchEnd={() => setIsDucking(false)}
-            sx={{
-              minWidth: '60px',
-              minHeight: '60px',
-              borderRadius: '50%',
-              background: 'linear-gradient(45deg, #00bcd4, #8a2be2)',
-            }}
-          >
-            <ArrowDownwardIcon />
-          </Button>
-        </Box>
-      )}
-    </Box>
+        {/* Instructions */}
+        <div className="mt-6 bg-black/30 backdrop-blur-lg rounded-2xl p-4">
+          <Typography variant="h6" className="text-white text-center mb-2">
+            🎮 Cara Bermain
+          </Typography>
+          <Typography variant="body2" className="text-gray-300 text-center">
+            {isMobile 
+              ? 'Gunakan tombol di atas untuk lompat dan merunduk' 
+              : 'Tekan Space/Up untuk lompat, Down untuk merunduk'}
+          </Typography>
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default DinoRunner;
-

@@ -4,539 +4,366 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useUserData } from '../hooks/useFirebaseData';
 import { userService } from '../service/firebaseService';
 
-const branches = [
- {
-    label: "Fishing",
-    path: "/game/fishing",
-    color: "from-blue-500 to-cyan-500",
-    description: "Gas berburu secret",
-    icon: "🐟",
-    particleColor: "#8CE4FF",
-    thumbnail: "/thumbnails/fishit.jpg", // ⭐ Thumbnail bisa Anda ganti
-    category: "Luck",
-    difficulty: "Secret"
-  },
-  {
-    label: "Dino",
-    path: "/game/dino",
-    color: "from-green-400 to-blue-500",
-    description: "Putar roda keberuntungan",
-    icon: "🦕",
-    particleColor: "#8BAE66",
-    thumbnail: "/thumbnails/dino.jpg", // ⭐ Thumbnail bisa Anda ganti
-    category: "Skill",
-    difficulty: "Medium"
-  },
-  {
-    label: "BlockBlast",
-    path: "/game/blockblast",
-    color: "from-purple-400 to-pink-500",
-    description: "Pasang Block",
-    icon: "🧩",
-    particleColor: "#E83C91",
-    thumbnail: "/thumbnails/blockblast.jpg", // ⭐ Thumbnail bisa Anda ganti
-    category: "IQ",
-    difficulty: "Easy"
-  },
-  { 
-    label: "Game Reme", 
-    path: "/game/reme", 
-    color: "from-purple-500 to-indigo-500",
-    description: "Game angka dengan multiplier",
-    icon: "🎲",
-    particleColor: "#8B5CF6",
-    thumbnail: "/thumbnails/gamereme.jpg", // ⭐ Thumbnail bisa Anda ganti
-    category: "Strategy",
-    difficulty: "Medium"
-  },
-  { 
-    label: "Game Mines",  
-    path: "/game/mines",  
-    color: "from-cyan-500 to-blue-500",
-    description: "Minesweeper klasik",
-    icon: "💎",
-    particleColor: "#06B6D4",
-    thumbnail: "/thumbnails/mines.jpg", // ⭐ Thumbnail bisa Anda ganti
-    category: "Puzzle",
-    difficulty: "Hard"
-  },
-  { 
-    label: "Lucky Wheel",  
-    path: "/game/luckywheel",  
-    color: "from-pink-500 to-rose-500",
-    description: "Putar roda keberuntungan",
-    icon: "🎯",
-    particleColor: "#F472B6",
-    thumbnail: "/thumbnails/luckywheel.jpg", // ⭐ Thumbnail bisa Anda ganti
-    category: "Luck",
-    difficulty: "Easy"
-  },
-];
+// 🎮 Enhanced Game Selection with New Games
+const Game = () => {
+  const navigate = useNavigate();
+  const { userData } = useUserData();
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState({});
 
-// Tambahkan ParticleSystem component yang sebelumnya tidak ada
-const ParticleSystem = ({ color, isActive }) => {
-  const particles = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 2 + 1,
-    delay: Math.random() * 3,
-  }));
+  // Enhanced game list with new games
+  const branches = [
+    // Existing Games
+    {
+      label: "FishIt",
+      path: "/game/fishing",
+      color: "from-blue-500 to-cyan-500",
+      description: "Gas berburu secret treasure di lautan! 🎣",
+      icon: "🐟",
+      particleColor: "#8CE4FF",
+      thumbnail: "/thumbnails/fishit.jpg",
+      category: "Arcade",
+      difficulty: "Easy",
+      isNew: false,
+      players: "1 Player",
+      duration: "5-10 min"
+    },
+    {
+      label: "Dino Runner",
+      path: "/game/dino",
+      color: "from-green-400 to-blue-500",
+      description: "Lari dari kejaran waktu dan rintangan! 🦕",
+      icon: "🦕",
+      particleColor: "#8BAE66",
+      thumbnail: "/thumbnails/dino.jpg",
+      category: "Action",
+      difficulty: "Medium",
+      isNew: false,
+      players: "1 Player",
+      duration: "3-5 min"
+    },
+    {
+      label: "BlockBlast",
+      path: "/game/blockblast",
+      color: "from-purple-400 to-pink-500",
+      description: "Susun blok untuk mencetak poin tertinggi! 🧩",
+      icon: "🧩",
+      particleColor: "#E83C91",
+      thumbnail: "/thumbnails/blockblast.jpg",
+      category: "Puzzle",
+      difficulty: "Easy",
+      isNew: false,
+      players: "1 Player",
+      duration: "5-15 min"
+    },
+    {
+      label: "Game Reme",
+      path: "/game/reme",
+      color: "from-purple-500 to-indigo-500",
+      description: "Tebak angka dengan multiplier menarik! 🎲",
+      icon: "🎲",
+      particleColor: "#8B5CF6",
+      thumbnail: "/thumbnails/gamereme.jpg",
+      category: "Casino",
+      difficulty: "Medium",
+      isNew: false,
+      players: "1 Player",
+      duration: "2-5 min"
+    },
+    {
+      label: "Lucky Wheel",
+      path: "/game/luckywheel",
+      color: "from-yellow-400 to-orange-500",
+      description: "Putar roda keberuntunganmu! 🎡",
+      icon: "🎡",
+      particleColor: "#FFD700",
+      thumbnail: "/thumbnails/luckywheel.jpg",
+      category: "Casino",
+      difficulty: "Easy",
+      isNew: false,
+      players: "1 Player",
+      duration: "1-3 min"
+    },
+    {
+      label: "Mines",
+      path: "/game/mines",
+      color: "from-cyan-500 to-blue-500",
+      description: "Hindari bom dan temukan harta karun! 💎",
+      icon: "💎",
+      particleColor: "#06B6D4",
+      thumbnail: "/thumbnails/mines.jpg",
+      category: "Puzzle",
+      difficulty: "Hard",
+      isNew: false,
+      players: "1 Player",
+      duration: "3-10 min"
+    },
+    // NEW GAMES
+    {
+      label: "Memory Card",
+      path: "/game/memory",
+      color: "from-indigo-400 to-purple-500",
+      description: "Tes ingatan dengan kartu karakter kelas! 🧠",
+      icon: "🧠",
+      particleColor: "#6366F1",
+      thumbnail: "/thumbnails/memory.jpg",
+      category: "Memory",
+      difficulty: "Medium",
+      isNew: true,
+      players: "1 Player",
+      duration: "5-15 min"
+    },
+    {
+      label: "Quiz Challenge",
+      path: "/game/quiz",
+      color: "from-green-400 to-emerald-500",
+      description: "Tantang pengetahuanmu dengan quiz seru! 🎯",
+      icon: "🎯",
+      particleColor: "#10B981",
+      thumbnail: "/thumbnails/quiz.jpg",
+      category: "Education",
+      difficulty: "Hard",
+      isNew: true,
+      players: "1 Player",
+      duration: "10-20 min"
+    },
+    {
+      label: "Tower Defense",
+      path: "/game/towerdefense",
+      color: "from-red-400 to-orange-500",
+      description: "Defend kelas dari serangan tugas dan PR! 🏰",
+      icon: "🏰",
+      particleColor: "#EF4444",
+      thumbnail: "/thumbnails/towerdefense.jpg",
+      category: "Strategy",
+      difficulty: "Hard",
+      isNew: true,
+      players: "1 Player",
+      duration: "15-30 min"
+    }
+  ];
 
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <AnimatePresence>
-        {isActive && particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute rounded-full"
-            style={{
-              backgroundColor: color,
-              width: particle.size,
-              height: particle.size,
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-            }}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ 
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0],
-              y: [-30, 30],
-            }}
-            transition={{
-              duration: 4,
-              delay: particle.delay,
-              repeat: Infinity,
-              repeatDelay: Math.random() * 2,
-            }}
-          />
-        ))}
-      </AnimatePresence>
-    </div>
-  );
-};
+  const categories = ['all', 'Arcade', 'Action', 'Puzzle', 'Casino', 'Memory', 'Education', 'Strategy'];
 
+  // Filter games based on category and search
+  const filteredGames = branches.filter(game => {
+    const matchesCategory = selectedCategory === 'all' || game.category === selectedCategory;
+    const matchesSearch = game.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         game.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
-// Thumbnail Component dengan 3D effect
-const GameThumbnail = ({ src, alt, isHovered }) => {
-  const [imageError, setImageError] = useState(false);
+  const navigateToGame = (path, gameLabel) => {
+    setLoading(prev => ({ ...prev, [gameLabel]: true }));
+    
+    // Simulate loading time for better UX
+    setTimeout(() => {
+      navigate(path);
+    }, 500);
+  };
 
-  return (
-    <div className="relative w-full h-48 rounded-xl overflow-hidden mb-4">
-      <motion.div 
-        className="absolute inset-0 bg-gradient-to-br from-black/20 to-transparent"
-        animate={isHovered ? { opacity: 0.3 } : { opacity: 0.6 }}
-        transition={{ duration: 0.3 }}
-      />
-      
-      {imageError || !src ? (
-        <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-          <span className="text-6xl opacity-30">{alt}</span>
-        </div>
-      ) : (
-        <motion.img
-          src={src}
-          alt={alt}
-          className="w-full h-full object-cover"
-          onError={() => setImageError(true)}
-          animate={isHovered ? { scale: 1.1 } : { scale: 1 }}
-          transition={{ duration: 0.3 }}
-        />
-      )}
+  const getGameStats = (gameLabel) => {
+    const stats = userData?.gameStats?.[gameLabel.toLowerCase().replace(' ', '')];
+    return stats || { gamesPlayed: 0, highScore: 0 };
+  };
 
-      {/* Overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-      
-      {/* Glow effect */}
-      <motion.div 
-        className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent blur-xl"
-        animate={isHovered ? { opacity: [0.2, 0.4, 0.2] } : { opacity: 0 }}
-        transition={{ duration: 2, repeat: Infinity }}
-      />
-    </div>
-  );
-};
+  const getDifficultyColor = (difficulty) => {
+    switch (difficulty) {
+      case 'Easy': return 'text-green-400';
+      case 'Medium': return 'text-yellow-400';
+      case 'Hard': return 'text-red-400';
+      default: return 'text-gray-400';
+    }
+  };
 
-// Compact Name Input untuk Mobile
-const CompactNameInput = ({ onSave }) => {
-  const [name, setName] = useState("");
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const handleSave = () => {
-    if (name.trim()) {
-      onSave(name.trim());
-      setName("");
-      setIsExpanded(false);
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case 'Arcade': return 'bg-blue-500';
+      case 'Action': return 'bg-green-500';
+      case 'Puzzle': return 'bg-purple-500';
+      case 'Casino': return 'bg-yellow-500';
+      case 'Memory': return 'bg-indigo-500';
+      case 'Education': return 'bg-emerald-500';
+      case 'Strategy': return 'bg-red-500';
+      default: return 'bg-gray-500';
     }
   };
 
   return (
-    <motion.div 
-      className="fixed top-4 left-4 right-4 z-50"
-      initial={false}
-      animate={isExpanded ? "expanded" : "collapsed"}
-      variants={{
-        collapsed: { width: 60, height: 60 },
-        expanded: { width: "auto", height: "auto" }
-      }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-    >
-      {!isExpanded ? (
-        <motion.button
-          onClick={() => setIsExpanded(true)}
-          className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <span className="text-xl">👤</span>
-        </motion.button>
-      ) : (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <motion.div 
-          className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl border border-white/20"
-          initial={{ opacity: 0, y: -20 }}
+          className="text-center mb-8"
+          initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center gap-3">
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+            🎮 XE-4 Gaming Portal
+          </h1>
+          <p className="text-xl text-gray-300 mb-6">
+            Pilih game favoritmu dan tantang teman-teman kelas!
+          </p>
+          
+          {/* Search Bar */}
+          <div className="max-w-md mx-auto mb-6">
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nama Anda"
-              className="flex-1 bg-transparent border-none outline-none text-gray-800 placeholder-gray-500"
-              onKeyPress={(e) => e.key === 'Enter' && handleSave()}
-              autoFocus
+              placeholder="Cari game..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg bg-black/30 backdrop-blur-lg text-white placeholder-gray-400 border border-gray-600 focus:border-purple-400 focus:outline-none transition-colors"
             />
-            <button
-              onClick={handleSave}
-              disabled={!name.trim()}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Simpan
-            </button>
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="p-2 text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-};
-
-// Game Card Component dengan Marketplace Style
-const GameCard = ({ branch, index, onClick, isActive }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50, rotateX: -30 }}
-      animate={{ opacity: 1, y: 0, rotateX: 0 }}
-      transition={{ 
-        duration: 0.8, 
-        delay: index * 0.2,
-        type: "spring",
-        stiffness: 100
-      }}
-      whileHover={{ 
-        y: -20,
-        rotateY: 10,
-        transition: { duration: 0.3 }
-      }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      className="relative group cursor-pointer"
-      onClick={onClick}
-    >
-      <div className="relative w-full rounded-3xl overflow-hidden transform-gpu">
-        {/* 3D Background Gradient */}
-        <div 
-          className={`absolute inset-0 bg-gradient-to-br ${branch.color} transition-all duration-500 group-hover:scale-110`}
-          style={{
-            transform: isHovered ? 'translateZ(20px)' : 'translateZ(0px)',
-          }}
-        />
-        
-        {/* Glass Effect Layer */}
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        
-        {/* Thumbnail */}
-        <GameThumbnail 
-          src={branch.thumbnail} 
-          alt={branch.label} 
-          isHovered={isHovered}
-        />
-
-        {/* Content Overlay */}
-        <div className="relative z-10 p-6">
-          {/* Header dengan icon dan kategori */}
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-3xl">{branch.icon}</span>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-1 bg-white/20 rounded text-xs">
-                {branch.category}
-              </span>
-              <span className={`px-2 py-1 rounded text-xs ${
-                branch.difficulty === 'Easy' ? 'bg-green-500/20 text-green-300' :
-                branch.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                'bg-red-500/20 text-red-300'
-              }`}>
-                {branch.difficulty}
-              </span>
-            </div>
           </div>
 
-          {/* Title */}
-          <motion.h3 
-            className="text-xl font-bold mb-2 text-white"
-            animate={isHovered ? { scale: 1.05 } : {}}
-            transition={{ duration: 0.3 }}
-          >
-            {branch.label}
-          </motion.h3>
-          
-          {/* Description */}
-          <p className="text-sm text-white/80 mb-4 leading-relaxed">
-            {branch.description}
-          </p>
-
-          {/* Play Button */}
-          <motion.div 
-            className="flex items-center justify-between"
-            animate={isHovered ? { x: 0 } : { x: -10 }}
-            transition={{ duration: 0.3 }}
-          >
-            <span className="text-white/60 text-sm">Tap to play</span>
-            <motion.div 
-              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
-              animate={isHovered ? { scale: 1.2 } : { scale: 1 }}
-            >
-              <span className="text-white">▶</span>
-            </motion.div>
-          </motion.div>
-        </div>
-
-        {/* Hover effects */}
-        <motion.div 
-          className="absolute inset-0 rounded-3xl border-2"
-          animate={isHovered ? { 
-            borderColor: ["rgba(255,255,255,0)", "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"],
-          } : { borderColor: "rgba(255,255,255,0)" }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        />
-
-        {/* Particle System */}
-        <ParticleSystem color={branch.particleColor} isActive={isHovered} />
-      </div>
-    </motion.div>
-  );
-};
-
-// Stats Card Component
-const StatsCard = ({ title, value, icon, color }) => (
-  <motion.div 
-    className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4"
-    whileHover={{ scale: 1.05 }}
-    transition={{ duration: 0.3 }}
-  >
-    <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center text-white`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-white/60 text-sm">{title}</p>
-        <p className="text-white font-bold text-lg">{value}</p>
-      </div>
-    </div>
-  </motion.div>
-);
-
-// Main Component dengan Marketplace Style
-export default function GameHub() {
-  const navigate = useNavigate();
-  const [playerName, setPlayerName] = useState("");
-  const [showNameInput, setShowNameInput] = useState(false);
-  const { data: userData } = useUserData(playerName || "guest");
-
-  // Initialize player
-  useEffect(() => {
-    const savedName = localStorage.getItem('gamehub_player_name');
-    if (savedName) {
-      setPlayerName(savedName);
-      setShowNameInput(false);
-    } else {
-      setShowNameInput(true);
-    }
-  }, []);
-
-  const savePlayerName = async (name) => {
-    if (!name.trim()) return;
-    
-    setPlayerName(name.trim());
-    localStorage.setItem('gamehub_player_name', name.trim());
-    setShowNameInput(false);
-    
-    await userService.saveUserData(name.trim(), {
-      nama: name.trim(),
-      money: 1000,
-      achievements: []
-    });
-  };
-
-  // Marketplace-style header
-  const marketplaceHeader = (
-    <motion.div 
-      className="text-center mb-8 z-10"
-      initial={{ opacity: 0, y: -30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-    >
-      <motion.h1 
-        className="text-5xl font-bold text-white mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2, duration: 0.6 }}
-      >
-        🎮 Game Marketplace
-      </motion.h1>
-      <p className="text-xl text-white/70 mb-6">
-        Temukan game favoritmu dan menangkan hadiah besar!
-      </p>
-      
-      {/* Stats Dashboard */}
-      <div className="flex justify-center gap-4 mb-6">
-        <StatsCard 
-          title="Total Games" 
-          value={branches.length} 
-          icon="🎮" 
-          color="bg-purple-500/20"
-        />
-        <StatsCard 
-          title="Your Balance" 
-          value={`Rp ${userData?.money?.toLocaleString() || '0'}`} 
-          icon="💰" 
-          color="bg-green-500/20"
-        />
-        <StatsCard 
-          title="Players Online" 
-          value="1,234" 
-          icon="👥" 
-          color="bg-blue-500/20"
-        />
-      </div>
-    </motion.div>
-  );
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-4 overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
-
-      {/* Compact Name Input untuk Mobile */}
-      <CompactNameInput onSave={savePlayerName} />
-
-      {/* Header dengan Marketplace Style */}
-      {playerName && marketplaceHeader}
-
-      {/* Game Grid - Marketplace Style */}
-      {playerName && (
-        <motion.div 
-          className="w-full max-w-7xl z-10"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
-          {/* Filter/Category Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <span className="text-white font-semibold">Kategori:</span>
-              <div className="flex gap-2">
-                {['All', 'Strategy', 'Puzzle', 'Luck'].map((cat) => (
-                  <button
-                    key={cat}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors"
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="text-white/60 text-sm">
-              {branches.length} game tersedia
-            </div>
-          </div>
-
-          {/* Game Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {branches.map((branch, i) => (
-              <GameCard
-                key={branch.path}
-                branch={branch}
-                index={i}
-                onClick={() => navigate(branch.path)}
-                isActive={false}
-              />
+          {/* Category Filter */}
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  selectedCategory === category
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'bg-black/30 text-gray-300 hover:bg-black/50'
+                }`}
+              >
+                {category === 'all' ? 'Semua' : category}
+              </button>
             ))}
           </div>
+        </motion.div>
 
-          {/* Featured Section */}
+        {/* Game Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <AnimatePresence>
+            {filteredGames.map((branch, index) => {
+              const stats = getGameStats(branch.label);
+              
+              return (
+                <motion.div
+                  key={branch.label}
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -50 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  whileHover={{ y: -10 }}
+                  className="relative"
+                >
+                  {/* New Game Badge */}
+                  {branch.isNew && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <span className="bg-gradient-to-r from-pink-500 to-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                        NEW!
+                      </span>
+                    </div>
+                  )}
+
+                  <div
+                    className={`bg-gradient-to-br ${branch.color} p-1 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-105`}
+                    onClick={() => navigateToGame(branch.path, branch.label)}
+                  >
+                    <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-6 h-full flex flex-col">
+                      {/* Game Icon */}
+                      <div className="text-center mb-4">
+                        <div className="text-6xl mb-3">{branch.icon}</div>
+                        <h3 className="text-2xl font-bold text-white mb-2">
+                          {branch.label}
+                        </h3>
+                      </div>
+
+                      {/* Game Description */}
+                      <p className="text-gray-300 text-sm mb-4 flex-grow">
+                        {branch.description}
+                      </p>
+
+                      {/* Game Info */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${getCategoryColor(branch.category)} text-white`}>
+                            {branch.category}
+                          </span>
+                          <span className={`text-sm font-semibold ${getDifficultyColor(branch.difficulty)}`}>
+                            {branch.difficulty}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span>👥 {branch.players}</span>
+                          <span>⏱️ {branch.duration}</span>
+                        </div>
+                      </div>
+
+                      {/* User Stats */}
+                      {userData && (
+                        <div className="bg-black/30 rounded-lg p-3 mb-4">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="text-center">
+                              <span className="text-purple-400 font-semibold">{stats.gamesPlayed}</span>
+                              <div className="text-gray-400">Played</div>
+                            </div>
+                            <div className="text-center">
+                              <span className="text-yellow-400 font-semibold">{stats.highScore}</span>
+                              <div className="text-gray-400">High Score</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Play Button */}
+                      <button
+                        disabled={loading[branch.label]}
+                        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                          loading[branch.label]
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            : 'bg-white/20 hover:bg-white/30 text-white transform hover:scale-105'
+                        }`}
+                      >
+                        {loading[branch.label] ? (
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Loading...
+                          </div>
+                        ) : (
+                          '▶️ Mainkan'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+
+        {/* No Results */}
+        {filteredGames.length === 0 && (
           <motion.div 
-            className="mt-16 text-center"
+            className="text-center py-16"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 1 }}
+            transition={{ duration: 0.5 }}
           >
-            <h3 className="text-2xl font-bold text-white mb-6">✨ Featured Games</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <motion.div 
-                className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm border border-white/10 rounded-xl p-6"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="text-4xl mb-4">🏆</div>
-                <h4 className="text-white font-semibold mb-2">Turnamen Mingguan</h4>
-                <p className="text-white/60 text-sm">Ikuti turnamen dan menangkan hadiah besar!</p>
-              </motion.div>
-              
-              <motion.div 
-                className="bg-gradient-to-br from-green-500/20 to-blue-500/20 backdrop-blur-sm border border-white/10 rounded-xl p-6"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="text-4xl mb-4">🎁</div>
-                <h4 className="text-white font-semibold mb-2">Daily Rewards</h4>
-                <p className="text-white/60 text-sm">Login setiap hari untuk bonus menarik!</p>
-              </motion.div>
-              
-              <motion.div 
-                className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 backdrop-blur-sm border border-white/10 rounded-xl p-6"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="text-4xl mb-4">👥</div>
-                <h4 className="text-white font-semibold mb-2">Referral Program</h4>
-                <p className="text-white/60 text-sm">Undang teman dan dapatkan bonus!</p>
-              </motion.div>
-            </div>
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-2xl font-bold text-white mb-2">Game tidak ditemukan</h3>
+            <p className="text-gray-400">Coba cari dengan kata kunci lain atau pilih kategori berbeda</p>
           </motion.div>
-        </motion.div>
-      )}
+        )}
 
-      {/* Custom CSS */}
-      <style jsx>{`
-        .backdrop-blur-sm {
-          backdrop-filter: blur(10px);
-        }
-        .transform-gpu {
-          transform: translateZ(0);
-        }
-      `}</style>
+        {/* Back Button */}
+        <div className="text-center mt-12">
+          <button
+            onClick={() => navigate('/')}
+            className="bg-black/30 backdrop-blur-lg text-white px-8 py-3 rounded-lg font-semibold hover:bg-black/50 transition-all duration-200 transform hover:scale-105"
+          >
+            ← Kembali ke Beranda
+          </button>
+        </div>
+      </div>
     </div>
   );
-}
+};
 
+export default Game;
