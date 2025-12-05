@@ -25,7 +25,7 @@ const Game = () => {
       thumbnail: "/thumbnails/fishit.jpg",
       category: "Arcade",
       difficulty: "Easy",
-      isNew: false,
+      isNew: true,
       players: "1 Player",
       duration: "5-10 min"
     },
@@ -33,7 +33,7 @@ const Game = () => {
       label: "Dino Runner",
       path: "/game/dino",
       color: "from-green-400 to-blue-500",
-      description: "Lari dari kejaran waktu dan rintangan! 🦕",
+      description: "Request dari RheRhe 🦕",
       icon: "🦕",
       particleColor: "#8BAE66",
       thumbnail: "/thumbnails/dino.jpg",
@@ -42,6 +42,34 @@ const Game = () => {
       isNew: false,
       players: "1 Player",
       duration: "3-5 min"
+    },
+    {
+      label: "Snake Game",
+      path: "/game/snake",
+      color: "from-green-500 to-cyan-500",
+      description: "Ular kadut",
+      icon: "🐍",
+      particleColor: "#43AD26",
+      thumbnail: "/thumbnails/snake.jpg",
+      category: "Arcade",
+      difficulty: "Easy",
+      isNew: true,
+      players: "1 Player",
+      duration: "5-10 min"
+    },
+    {
+      label: "Space Shooter",
+      path: "/game/spaceshoot",
+      color: "from-purple-500 to-black-500",
+      description: "Dor Dor",
+      icon: "💥",
+      particleColor: "#360185",
+      thumbnail: "/thumbnails/spaceshot.jpg",
+      category: "Arcade",
+      difficulty: "Easy",
+      isNew: true,
+      players: "1 Player",
+      duration: "5-10 min"
     },
     {
       label: "BlockBlast",

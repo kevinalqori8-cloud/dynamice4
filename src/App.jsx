@@ -27,6 +27,8 @@ import BlockBlast from "./Pages/game/BlockBlast.jsx";
 import MemoryCardGame from "./Pages/game/MemoryCardGame.jsx";
 import QuizChallenge from "./Pages/game/QuizChallenge.jsx";
 import TowerDefense from "./Pages/game/TowerDefense.jsx";
+import SnakeGame from "./Pages/game/SnakeGame.jsx";
+import SpaceShooter from "./Pages/game/SpaceShooterGame.jsx";
 
 // 🛡️ Ultra Fixed App Component - No More Errors!
 class UltraErrorBoundary extends React.Component {
@@ -140,7 +142,6 @@ function App() {
   }
 
   return (
-    <UltraErrorBoundary>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -166,6 +167,8 @@ function App() {
             
             {/* New Games */}
             <Route path="/game/memory" element={<AppLayout><MemoryCardGame /></AppLayout>} />
+	<Route path="/game/snake" element={<AppLayout><SnakeGame /></AppLayout>} />
+	<Route path="/game/spaceshoot" element={<AppLayout><SpaceShooter /></AppLayout>} />
             <Route path="/game/quiz" element={<AppLayout><QuizChallenge /></AppLayout>} />
             <Route path="/game/towerdefense" element={<AppLayout><TowerDefense /></AppLayout>} />
             
@@ -189,7 +192,6 @@ function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
-    </UltraErrorBoundary>
   );
 }
 
