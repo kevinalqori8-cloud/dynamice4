@@ -1,309 +1,428 @@
-// src/Pages/game/FIXED_FishIt.jsx (Contoh Fix untuk FishIt)
+// Fishit.jsx - FIXED VERSION
+import React, { useState, useEffect, useRef, useCallback } from 'react'; // TAMBAHKAN useState import
+import './Fishit.css';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSafeGame } from '../../hooks/useSafeGame';
-import { MobileGameController, useTouchControls } from '../../components/MobileGameController';
+// Import images (pastikan file ini ada di folder public/images/)
+const FISH_IMAGES = {
+  normal: '/images/fish-normal.png',
+  rare: '/images/fish-rare.png',
+  legendary: '/images/fish-legendary.png'
+};
 
-// Game constants
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 600;
-const FISH_TYPES = [
-  { emoji: '🐟', points: 10, speed: 2, size: 30 },
-  { emoji: '🐠', points: 20, speed: 3, size: 25 },
-  { emoji: '🦈', points: 50, speed: 1, size: 40 },
-  { emoji: '🐡', points: 15, speed: 2.5, size: 28 },
-];
+const HOOK_IMAGE = '/images/hook.png';
+const BACKGROUND_IMAGE = '/images/underwater-bg.jpg';
 
-const FishItGame = () => {
-  const navigate = useNavigate();
-  const { safeLocalStorage, safeNavigate, safeGet } = useSafeGame();
-  const gameAreaRef = useRef(null);
-  const [gameState, setGameState] = useState('ready'); // ready, playing, paused, completed
+const Fishit = () => {
+  // FIX: Pastikan semua useState sudah diimport dari React
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [hook, setHook] = useState({ x: GAME_WIDTH / 2, y: 50, cast: false, reeling: false });
-  const [fishes, setFishes] = useState([]);
+  const [fish, setFish] = useState([]);
+  const [hook, setHook] = useState({ x: 200, y: 100 });
+  const [gameStarted, setGameStarted] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [level, setLevel] = useState(1);
+  const [fishesCaught, setFishesCaught] = useState(0);
+  const [isReeling, setIsReeling] = useState(false);
+  const [bait, setBait] = useState({ x: 200, y: 150 });
   const [caughtFish, setCaughtFish] = useState(null);
-  const [playerName, setPlayerName] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
+  
+  const canvasRef = useRef(null);
+  const gameLoopRef = useRef(null);
+  const hookImageRef = useRef(new Image());
+  const backgroundImageRef = useRef(new Image());
 
-  // Initialize game
+  // Game constants
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 600;
+  const FISH_TYPES = {
+    normal: { points: 10, speed: 2, size: 40, color: '#FFD700' },
+    rare: { points: 25, speed: 3, size: 35, color: '#FF6B6B' },
+    legendary: { points: 50, speed: 4, size: 30, color: '#4ECDC4' }
+  };
+
+  // Initialize images
   useEffect(() => {
-    const savedName = safeLocalStorage.getItem('gamehub_player_name', '');
-    if (savedName) {
-      setPlayerName(savedName);
-    }
-    
-    // Check if mobile
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    // Load images dengan error handling
+    hookImageRef.current.src = HOOK_IMAGE;
+    hookImageRef.current.onerror = () => {
+      console.log('Hook image failed to load, using fallback');
+      // Fallback ke canvas drawing
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+
+    backgroundImageRef.current.src = BACKGROUND_IMAGE;
+    backgroundImageRef.current.onerror = () => {
+      console.log('Background image failed to load, using fallback');
+    };
+
+    // Initialize game jika sudah ada canvas
+    if (canvasRef.current) {
+      initializeGame();
+    }
   }, []);
 
-  // Game timer
-  useEffect(() => {
-    if (gameState === 'playing' && timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && gameState === 'playing') {
-      setGameState('completed');
-    }
-  }, [gameState, timeLeft]);
+  const initializeGame = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  // Spawn fishes
-  useEffect(() => {
-    if (gameState === 'playing') {
-      const spawnFish = () => {
-        const newFish = {
-          id: Date.now() + Math.random(),
-          x: Math.random() * (GAME_WIDTH - 100) + 50,
-          y: Math.random() * (GAME_HEIGHT - 200) + 150,
-          type: FISH_TYPES[Math.floor(Math.random() * FISH_TYPES.length)],
-          direction: Math.random() > 0.5 ? 1 : -1,
-          speed: 1 + Math.random() * 2,
-        };
-        setFishes(prev => [...prev, newFish]);
-      };
+    // Set canvas size
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
 
-      const interval = setInterval(spawnFish, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [gameState]);
+    // Reset game state
+    setScore(0);
+    setFish([]);
+    setFishesCaught(0);
+    setLevel(1);
+    setGameOver(false);
+    setCaughtFish(null);
+    setIsReeling(false);
 
-  // Move fishes
-  useEffect(() => {
-    if (gameState === 'playing') {
-      const moveFishes = () => {
-        setFishes(prev => prev.map(fish => ({
-          ...fish,
-          x: fish.x + fish.direction * fish.speed,
-          direction: fish.x <= 0 || fish.x >= GAME_WIDTH - 50 ? -fish.direction : fish.direction,
-        })).filter(fish => fish.x > -100 && fish.x < GAME_WIDTH + 100));
-      };
+    // Spawn initial fish
+    spawnFish();
+  };
 
-      const interval = setInterval(moveFishes, 50);
-      return () => clearInterval(interval);
-    }
-  }, [gameState]);
+  const spawnFish = () => {
+    const newFish = [];
+    const fishCount = 5 + level * 2;
 
-  // Game controls
-  const handleCast = useCallback((targetX) => {
-    if (gameState !== 'playing' || hook.cast) return;
-
-    setHook(prev => ({ ...prev, cast: true, x: targetX }));
-    
-    // Check for fish catch
-    setTimeout(() => {
-      const caught = fishes.find(fish => 
-        Math.abs(fish.x - targetX) < 50 && Math.abs(fish.y - hook.y) < 50
-      );
+    for (let i = 0; i < fishCount; i++) {
+      const fishType = Math.random() < 0.6 ? 'normal' : 
+                      Math.random() < 0.8 ? 'rare' : 'legendary';
       
-      if (caught) {
-        setCaughtFish(caught);
-        setFishes(prev => prev.filter(f => f.id !== caught.id));
-        setScore(prev => prev + caught.type.points);
+      const fishData = {
+        id: i,
+        x: Math.random() * CANVAS_WIDTH,
+        y: Math.random() * (CANVAS_HEIGHT - 100) + 50,
+        type: fishType,
+        direction: Math.random() < 0.5 ? -1 : 1,
+        caught: false,
+        size: FISH_TYPES[fishType].size,
+        color: FISH_TYPES[fishType].color
+      };
+
+      newFish.push(fishData);
+    }
+
+    setFish(newFish);
+  };
+
+  const startGame = () => {
+    setGameStarted(true);
+    initializeGame();
+    gameLoop();
+  };
+
+  const gameLoop = () => {
+    if (gameOver) return;
+
+    updateGame();
+    drawGame();
+
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  const updateGame = () => {
+    // Update fish positions
+    setFish(prevFish => 
+      prevFish.map(f => {
+        if (f.caught) return f;
+
+        let newX = f.x + (FISH_TYPES[f.type].speed * f.direction);
         
-        // Reel in
-        setHook(prev => ({ ...prev, reeling: true }));
-        setTimeout(() => {
-          setHook(prev => ({ ...prev, cast: false, reeling: false }));
-          setCaughtFish(null);
-        }, 1000);
-      } else {
-        setHook(prev => ({ ...prev, cast: false }));
+        // Reverse direction if hitting boundaries
+        if (newX <= 0 || newX >= CANVAS_WIDTH - f.size) {
+          f.direction *= -1;
+          newX = f.x + (FISH_TYPES[f.type].speed * f.direction);
+        }
+
+);
+        }
+
+        return { ...f, x: newX };
+      })
+    );
+
+    // Check for catches
+    checkCatch();
+  };
+
+  const checkCatch = () => {
+    fish.forEach(f => {
+      if (f.caught || !gameStarted) return;
+
+      const distance = Math.sqrt(
+        Math.pow(bait.x - f.x, 2) + Math.pow(bait.y - f.y, 2)
+      );
+
+      if (distance < 30) {
+        catchFish(f);
+      }
+    });
+  };
+
+  const catchFish = (fishToCatch) => {
+    setCaughtFish(fishToCatch);
+    setIsReeling(true);
+    
+    // Update fish state
+    setFish(prevFish => 
+      prevFish.map(f => 
+        f.id === fishToCatch.id ? { ...f, caught: true } : f
+      )
+    );
+
+    // Reel in animation
+    setTimeout(() => {
+      setScore(prev => prev + FISH_TYPES[fishToCatch.type].points);
+      setFishesCaught(prev => prev + 1);
+      
+      // Remove caught fish
+      setFish(prevFish => prevFish.filter(f => f.id !== fishToCatch.id));
+      
+      setCaughtFish(null);
+      setIsReeling(false);
+
+      // Check level up
+      if (fishesCaught + 1 >= 5 * level) {
+        setLevel(prev => prev + 1);
+      }
+
+      // Spawn new fish if all caught
+      if (fish.filter(f => !f.caught).length <= 1) {
+        setTimeout(spawnFish, 1000);
       }
     }, 1000);
-  }, [gameState, hook, fishes]);
-
-  // Mouse controls
-  const handleGameAreaClick = (e) => {
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * GAME_WIDTH;
-    handleCast(x);
   };
 
-  // Touch controls
-  const touchControls = useTouchControls(
-    () => handleCast(hook.x), // up
-    () => {}, // down
-    () => handleCast(hook.x - 50), // left
-    () => handleCast(hook.x + 50) // right
-  );
+  const moveHook = (direction) => {
+    if (isReeling) return;
 
-  // Start game
-  const startGame = () => {
-    setGameState('playing');
-    setScore(0);
-    setTimeLeft(60);
-    setFishes([]);
-    setHook({ x: GAME_WIDTH / 2, y: 50, cast: false, reeling: false });
-  };
+    setHook(prev => {
+      let newX = prev.x;
+      let newY = prev.y;
 
-  // Save score
-  const saveScore = async () => {
-    if (playerName && score > 0) {
-      try {
-        // Import userService dynamically
-        const { userService } = await import('../../service/firebaseService');
-        await userService.updateUserData(playerName, {
-          fishingScore: score,
-          fishingHighScore: Math.max(score, safeGet(userData, 'fishingHighScore', 0))
-        });
-      } catch (error) {
-        console.warn('Could not save to Firebase:', error);
+      switch(direction) {
+        case 'left':
+          newX = Math.max(0, prev.x - 10);
+          break;
+        case 'right':
+          newX = Math.min(CANVAS_WIDTH - 20, prev.x + 10);
+          break;
+        case 'up':
+          newY = Math.max(0, prev.y - 10);
+          break;
+        case 'down':
+          newY = Math.min(CANVAS_HEIGHT - 20, prev.y + 10);
+          break;
       }
-    }
+
+      // Update bait position
+      setBait({ x: newX, y: newY + 50 });
+
+      return { x: newX, y: newY };
+    });
   };
 
-  useEffect(() => {
-    if (gameState === 'completed') {
-      saveScore();
+  const drawGame = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Clear canvas
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Draw background
+    if (backgroundImageRef.current.complete) {
+      ctx.drawImage(backgroundImageRef.current, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    } else {
+      // Fallback background
+      const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+      gradient.addColorStop(0, '#87CEEB');
+      gradient.addColorStop(1, '#4682B4');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
-  }, [gameState]);
+
+    // Draw fish
+    fish.forEach(f => {
+      if (f.caught) return;
+
+      ctx.save();
+      
+      // Fish body
+      ctx.fillStyle = f.color;
+      ctx.beginPath();
+      ctx.ellipse(f.x, f.y, f.size/2, f.size/3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Fish tail
+      ctx.beginPath();
+      ctx.moveTo(f.x - f.size/2, f.y);
+      ctx.lineTo(f.x - f.size, f.y - f.size/4);
+      ctx.lineTo(f.x - f.size, f.y + f.size/4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Fish eye
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(f.x + f.size/4, f.y - f.size/6, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'black';
+      ctx.beginPath();
+      ctx.arc(f.x + f.size/4, f.y - f.size/6, 1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    });
+
+    // Draw hook and line
+    ctx.strokeStyle = '#8B4513';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(hook.x, 0);
+    ctx.lineTo(hook.x, hook.y);
+    ctx.stroke();
+
+    if (hookImageRef.current.complete) {
+      ctx.drawImage(hookImageRef.current, hook.x - 10, hook.y, 20, 20);
+    } else {
+      // Fallback hook
+      ctx.fillStyle = '#C0C0C0';
+      ctx.beginPath();
+      ctx.arc(hook.x, hook.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw bait
+    ctx.fillStyle = '#FF6347';
+    ctx.beginPath();
+    ctx.arc(bait.x, bait.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw caught fish
+    if (caughtFish && isReeling) {
+      ctx.save();
+      ctx.fillStyle = caughtFish.color;
+      ctx.beginPath();
+      ctx.arc(bait.x, bait.y + 10, caughtFish.size/2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Draw UI
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial';
+    ctx.fillText(`Score: ${score}`, 10, 30);
+    ctx.fillText(`Level: ${level}`, 10, 60);
+    ctx.fillText(`Caught: ${fishesCaught}`, 10, 90);
+  };
+
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (!gameStarted || gameOver) return;
+
+      switch(e.key) {
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          moveHook('left');
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          moveHook('right');
+          break;
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          moveHook('up');
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          moveHook('down');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [gameStarted, gameOver, isReeling]);
+
+  // Touch controls untuk mobile
+  const handleTouch = (direction) => {
+    if (!gameStarted || gameOver || isReeling) return;
+    moveHook(direction);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-400 via-blue-600 to-blue-800 relative overflow-hidden">
-      {/* Ocean Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-300 to-blue-900 opacity-50"></div>
-      
-      {/* Game UI */}
-      <div className="relative z-10 p-4">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4 text-white">
-          <div>
-            <h1 className="text-3xl font-bold">🎣 Fish It!</h1>
-            <p className="text-sm">Player: {playerName || 'Guest'}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xl font-bold">Score: {score}</p>
-            <p className="text-sm">Time: {timeLeft}s</p>
-          </div>
-        </div>
-
-        {/* Game Area */}
-        <div 
-          ref={gameAreaRef}
-          className="relative mx-auto bg-gradient-to-b from-blue-400 to-blue-900 rounded-lg overflow-hidden cursor-crosshair"
-          style={{ width: '100%', maxWidth: '800px', height: '500px' }}
-          onClick={handleGameAreaClick}
-          {...(isMobile ? touchControls : {})}
-        >
-          {/* Ocean floor */}
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-yellow-600 to-transparent"></div>
-          
-          {/* Hook */}
-          <AnimatePresence>
-            {hook.cast && (
-              <motion.div
-                className="absolute w-2 bg-gray-800"
-                style={{ left: hook.x, top: 0, height: hook.y }}
-                initial={{ height: 0 }}
-                animate={{ height: hook.y }}
-                exit={{ height: 0 }}
-                transition={{ duration: 0.5 }}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Hook head */}
-          <motion.div
-            className="absolute w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-white"
-            style={{ left: hook.x - 12, top: hook.y - 12 }}
-            animate={{ y: hook.cast ? [0, 20, 0] : 0 }}
-            transition={{ duration: 1, repeat: hook.cast ? Infinity : 0 }}
-          >
-            🪝
-          </motion.div>
-
-          {/* Fishes */}
-          <AnimatePresence>
-            {fishes.map(fish => (
-              <motion.div
-                key={fish.id}
-                className="absolute flex items-center justify-center"
-                style={{ 
-                  left: fish.x, 
-                  top: fish.y,
-                  width: fish.type.size,
-                  height: fish.type.size
-                }}
-                animate={{ x: fish.direction * 20 }}
-                transition={{ duration: 1, repeat: Infinity, repeatType: "reverse" }}
-              >
-                <span className="text-2xl">{fish.type.emoji}</span>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Caught fish */}
-          <AnimatePresence>
-            {caughtFish && hook.reeling && (
-              <motion.div
-                className="absolute flex items-center justify-center text-3xl"
-                style={{ left: hook.x - 15, top: hook.y - 15 }}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-              >
-                {caughtFish.type.emoji}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Controls */}
-        <div className="mt-4 text-center">
-          {gameState === 'ready' && (
-            <button
-              onClick={startGame}
-              className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition-colors"
-            >
-              🎣 Start Fishing!
-            </button>
-          )}
-
-          {gameState === 'completed' && (
-            <div className="bg-white/20 backdrop-blur-lg rounded-lg p-6 text-white">
-              <h2 className="text-2xl font-bold mb-2">🎣 Time's Up!</h2>
-              <p className="text-xl mb-4">Score: {score}</p>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={startGame}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
-                >
-                  Play Again
-                </button>
-                <button
-                  onClick={() => navigate('/game')}
-                  className="px-6 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  Back to Games
-                </button>
-              </div>
-            </div>
-          )}
+    <div className="fishit-game">
+      <div className="game-header">
+        <h2>🎣 Fishit Game</h2>
+        <div className="score-board">
+          <span>Score: {score}</span>
+          <span>Level: {level}</span>
+          <span>Caught: {fishesCaught}</span>
         </div>
       </div>
 
-      {/* Mobile Controls */}
-      {isMobile && gameState === 'playing' && (
-        <MobileGameController
-          onLeft={() => handleCast(hook.x - 50)}
-          onRight={() => handleCast(hook.x + 50)}
-          onAction={() => handleCast(hook.x)}
-          actionText="🎣 Cast"
+      <div className="game-container">
+        <canvas
+          ref={canvasRef}
+          className="game-canvas"
+          style={{
+            border: '2px solid #333',
+            backgroundColor: '#87CEEB'
+          }}
         />
-      )}
+
+        {!gameStarted && (
+          <div className="game-overlay">
+            <div className="start-menu">
+              <h3>🎣 Fishit Game</h3>
+              <p>Tangkap ikan sebanyak-banyaknya!</p>
+              <button onClick={startGame} className="start-btn">
+                Mulai Game
+              </button>
+              <div className="instructions">
+                <p>Gunakan tombol panah atau WASD untuk menggerakkan kail</p>
+                <p>Tangkap ikan dengan mendekati mereka</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {gameOver && (
+          <div className="game-overlay">
+            <div className="game-over-menu">
+              <h3>Game Over!</h3>
+              <p>Score Akhir: {score}</p>
+              <p>Ikan tertangkap: {fishesCaught}</p>
+              <button onClick={startGame} className="restart-btn">
+                Main Lagi
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Controls */}
+        <div className="mobile-controls">
+          <div className="control-row">
+            <button onClick={() => handleTouch('up')}>⬆️</button>
+          </div>
+          <div className="control-row">
+            <button onClick={() => handleTouch('left')}>⬅️</button>
+            <button onClick={() => handleTouch('down')}>⬇️</button>
+            <button onClick={() => handleTouch('right')}>➡️</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default FishItGame;
+export default Fishit;
 

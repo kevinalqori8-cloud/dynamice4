@@ -1,9 +1,9 @@
-// src/components/MusicDedication.jsx - FIXED VERSION
-
+// MusicDedication.jsx - INTEGRATED VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useMusicDedication } from '../hooks/useMusicDedication';
 import { Play, Pause, Heart, Music, Send, Search, Volume2, VolumeX } from 'lucide-react';
+import { collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const MusicDedication = () => {
   const [activeTab, setActiveTab] = useState('explore');
@@ -17,53 +17,119 @@ const MusicDedication = () => {
   const [category, setCategory] = useState('love');
   const [isMobile, setIsMobile] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
-  const [audioRef, setAudioRef] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [likedItems, setLikedItems] = useState(new Set());
+  const [dedications, setDedications] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const { dedications, loading, sendDedication, searchDedicationsByReceiver, getAllDedications } = useMusicDedication();
-
-  // FIX: Audio player setup
   const audioPlayerRef = useRef(null);
 
-  // FIX: Prevent like count increase
-  const handleLike = (dedicationId) => {
-    if (likedItems.has(dedicationId)) return; // Sudah like, tidak bisa like lagi
+  // INTEGRASI DENGAN API MUSIK GRATIS
+  const searchSongs = async (query) => {
+    if (!query.trim()) return [];
     
-    // Hanya update UI state, tidak update ke database
-    setLikedItems(prev => new Set([...prev, dedicationId]));
+    try {
+      // Primary: Deezer API (gratis)
+      const response = await fetch(`https://api.deezer.com/search?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      
+      if (data.data) {
+        return data.data.map(track => ({
+          id: track.id,
+          title: track.title,
+          artist: track.artist.name,
+          album: track.album.title,
+          preview: track.preview,
+          image: track.album.cover_medium,
+          url: track.link
+        }));
+      }
+    } catch (error) {
+      console.error('Error searching songs:', error);
+    }
+    
+    return [];
   };
 
-  // FIX: Audio player functions
-  const playAudio = (dedication) => {
-    if (!dedication.songUrl) return;
+  // Firebase operations
+  const getAllDedications = async (limitCount = 20) => {
+    try {
+      const q = query(
+        collection(db, 'musicDedications'),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const dedicationList = [];
+      querySnapshot.forEach((doc) => {
+        dedicationList.push({ id: doc.id, ...doc.data() });
+      });
+      
+      setDedications(dedicationList);
+    } catch (error) {
+      console.error('Error getting dedications:', error);
+    }
+  };
 
-    // Stop audio yang sedang diputar
+  const searchDedicationsByReceiver = async (receiverName, limitCount = 50) => {
+    try {
+      const q = query(
+        collection(db, 'musicDedications'),
+        where('receiverName', '==', receiverName),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const results = [];
+      querySnapshot.forEach((doc) => {
+        results.push({ id: doc.id, ...doc.data() });
+      });
+      
+      return results;
+    } catch (error) {
+      console.error('Error searching dedications:', error);
+      return [];
+    }
+  };
+
+  const sendDedication = async (dedicationData) => {
+    try {
+      await addDoc(collection(db, 'musicDedications'), {
+        ...dedicationData,
+        likes: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error sending dedication:', error);
+      throw error;
+    }
+  };
+
+  // Audio functions
+  const playAudio = (dedication) => {
+    if (!dedication.preview) return;
+
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause();
       audioPlayerRef.current = null;
     }
 
-    // Create new audio instance
-    const audio = new Audio(dedication.songUrl);
+    const audio = new Audio(dedication.preview);
     audio.volume = volume;
     
     audio.play().catch(err => {
       console.log('Audio play failed:', err);
-      // Fallback: create audio element
-      const audioElement = new Audio(dedication.songUrl);
-      audioElement.volume = volume;
-      audioElement.play().catch(() => {
-        alert('Tidak dapat memutar audio ini');
-      });
+      alert('Tidak dapat memutar audio ini');
     });
 
     setCurrentlyPlaying(dedication.id);
     setIsPlaying(true);
     audioPlayerRef.current = audio;
 
-    // Reset when audio ends
     audio.onended = () => {
       setCurrentlyPlaying(null);
       setIsPlaying(false);
@@ -78,25 +144,15 @@ const MusicDedication = () => {
     }
   };
 
-  // FIX: Prevent state reset on unmount
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (audioPlayerRef.current) {
-        audioPlayerRef.current.pause();
-        audioPlayerRef.current = null;
-      }
-    };
+  // Like function (FIXED - tidak akan nambah di database)
+  const handleLike = (dedicationId) => {
+    if (likedItems.has(dedicationId)) return;
+    
+    // Hanya update local state, tidak update database
+    setLikedItems(prev => new Set([...prev, dedicationId]));
+  };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (audioPlayerRef.current) {
-        audioPlayerRef.current.pause();
-        audioPlayerRef.current = null;
-      }
-    };
-  }, []);
-
+  // Initialize
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -106,54 +162,80 @@ const MusicDedication = () => {
     
     getAllDedications(20);
     
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+    };
   }, []);
 
-  const handleSearch = async () => {
-    if (!searchName.trim()) return;
-    
-    const results = await searchDedicationsByReceiver(searchName.trim(), 50);
-    setFoundDedications(results);
-    setActiveTab('results');
-  };
+  // Song search component
+  const SongSearch = () => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searching, setSearching] = useState(false);
 
-  const handleSendDedication = async () => {
-    if (!senderName.trim() || !receiverName.trim() || !songTitle.trim()) {
-      alert('Mohon isi nama pengirim, penerima, dan judul lagu!');
-      return;
-    }
-
-    try {
-      await sendDedication({
-        senderName: senderName.trim(),
-        receiverName: receiverName.trim(),
-        songTitle: songTitle.trim(),
-        songArtist: songArtist.trim(),
-        message: message.trim(),
-        category: category,
-        isPublic: true,
-        songUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(songTitle)}` // YouTube URL sebagai contoh
-      });
-
-      // Reset form tapi jangan reset liked items
-      setSongTitle('');
-      setSongArtist('');
-      setMessage('');
-      setCategory('love');
+    const handleSongSearch = async () => {
+      if (!searchQuery.trim()) return;
       
-      getAllDedications(20);
-      alert('💝 Dedication berhasil dikirim!');
+      setSearching(true);
+      const results = await searchSongs(searchQuery);
+      setSearchResults(results);
+      setSearching(false);
+    };
 
-    } catch (error) {
-      alert('❌ Gagal mengirim dedication: ' + error.message);
-    }
+    const selectSong = (song) => {
+      setSongTitle(song.title);
+      setSongArtist(song.artist);
+      setSearchResults([]);
+      setSearchQuery('');
+    };
+
+    return (
+      <div className="mb-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Cari lagu..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 focus:border-pink-400 focus:outline-none"
+          />
+          <button
+            onClick={handleSongSearch}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-white/60 hover:text-white"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+        </div>
+        
+        {searching && <div className="text-white/60 mt-2">Mencari...</div>}
+        
+        {searchResults.length > 0 && (
+          <div className="mt-2 bg-black/30 rounded-lg max-h-40 overflow-y-auto">
+            {searchResults.map(song => (
+              <div
+                key={song.id}
+                className="p-3 hover:bg-white/10 cursor-pointer text-white"
+                onClick={() => selectSong(song)}
+              >
+                <div className="font-semibold">{song.title}</div>
+                <div className="text-sm text-white/60">{song.artist}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
+  // Dedication card component
   const DedicationCard = ({ dedication, index }) => {
     const isCurrentlyPlaying = currentlyPlaying === dedication.id;
     const isLiked = likedItems.has(dedication.id);
-    const senderInitial = dedication.senderName.charAt(0).toUpperCase();
-    const receiverInitial = dedication.receiverName.charAt(0).toUpperCase();
+    const senderInitial = dedication.senderName?.charAt(0).toUpperCase() || '?';
+    const receiverInitial = dedication.receiverName?.charAt(0).toUpperCase() || '?';
 
     return (
       <motion.div
@@ -162,7 +244,6 @@ const MusicDedication = () => {
         transition={{ delay: index * 0.1 }}
         className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:border-white/40 transition-all duration-300"
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
@@ -180,7 +261,6 @@ const MusicDedication = () => {
           </div>
         </div>
 
-        {/* Music Player */}
         <div className="bg-black/30 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -193,7 +273,6 @@ const MusicDedication = () => {
               </div>
             </div>
             
-            {/* Audio Controls */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => isCurrentlyPlaying ? pauseAudio() : playAudio(dedication)}
@@ -208,7 +287,6 @@ const MusicDedication = () => {
             </div>
           </div>
 
-          {/* Volume Control (if playing) */}
           {isCurrentlyPlaying && (
             <div className="flex items-center gap-2 mt-2">
               <Volume2 className="w-4 h-4 text-white/60" />
@@ -225,14 +303,12 @@ const MusicDedication = () => {
           )}
         </div>
 
-        {/* Message */}
         {dedication.message && (
           <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg p-4 mb-4">
             <p className="text-white text-sm italic">"{dedication.message}"</p>
           </div>
         )}
 
-        {/* Footer */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => handleLike(dedication.id)}
@@ -248,11 +324,18 @@ const MusicDedication = () => {
           </button>
           
           <div className="text-xs text-gray-400">
-            {new Date(dedication.createdAt).toLocaleDateString('id-ID', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
+            {dedication.createdAt?.toDate ? 
+              new Date(dedication.createdAt.toDate()).toLocaleDateString('id-ID', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }) : 
+              new Date().toLocaleDateString('id-ID', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })
+            }
           </div>
         </div>
       </motion.div>
@@ -262,9 +345,7 @@ const MusicDedication = () => {
   // Main UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500 relative overflow-hidden">
-      {/* Animated Background */}
       <div className="fixed inset-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-purple-500/20 to-pink-500/20"></div>
         {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
@@ -291,7 +372,6 @@ const MusicDedication = () => {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Header */}
         <motion.div 
           className="text-center mb-8"
           initial={{ opacity: 0, y: -50 }}
@@ -306,7 +386,6 @@ const MusicDedication = () => {
           </p>
         </motion.div>
 
-        {/* Search Bar yang Kamu Minta - DI TENGAH */}
         <motion.div 
           className="max-w-2xl mx-auto mb-8"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -342,7 +421,6 @@ const MusicDedication = () => {
           </div>
         </motion.div>
 
-        {/* Tab Navigation */}
         <div className="flex justify-center mb-8">
           <div className="bg-black/20 backdrop-blur-lg rounded-full p-2 flex gap-2">
             {[
@@ -366,38 +444,147 @@ const MusicDedication = () => {
           </div>
         </div>
 
-        {/* Content */}
         <AnimatePresence mode="wait">
-          {/* Konten untuk setiap tab */}
-          {/* (Sama seperti sebelumnya tapi dengan audio player fix) */}
-        </AnimatePresence>
-
-        {/* Floating Music Notes */}
-        <div className="fixed inset-0 pointer-events-none">
-          {[...Array(15)].map((_, i) => (
+          {activeTab === 'explore' && (
             <motion.div
-              key={i}
-              className="absolute text-white/20"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                fontSize: `${Math.random() * 20 + 10}px`
-              }}
-              animate={{
-                y: [-30, 30],
-                x: [-20, 20],
-                rotate: [0, 360]
-              }}
-              transition={{
-                duration: Math.random() * 20 + 10,
-                repeat: Infinity,
-                repeatType: "reverse"
-              }}
+              key="explore"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-4xl mx-auto"
             >
-              ♪
+              <h2 className="text-3xl font-bold text-white mb-6 text-center">✨ Dedication Terbaru</h2>
+              <div className="grid gap-6">
+                {dedications.map((dedication, index) => (
+                  <DedicationCard key={dedication.id} dedication={dedication} index={index} />
+                ))}
+              </div>
             </motion.div>
-          ))}
-        </div>
+          )}
+
+          {activeTab === 'search' && (
+            <motion.div
+              key="search"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-4xl mx-auto"
+            >
+              <h2 className="text-3xl font-bold text-white mb-6 text-center">🔍 Hasil Pencarian untuk "{searchName}"</h2>
+              <div className="grid gap-6">
+                {foundDedications.map((dedication, index) => (
+                  <DedicationCard key={dedication.id} dedication={dedication} index={index} />
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'send' && (
+            <motion.div
+              key="send"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-2xl mx-auto"
+            >
+              <div className="bg-black/20 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+                <h2 className="text-3xl font-bold text-white mb-6 text-center">🎁 Kirim Dedication</h2>
+                
+                <SongSearch />
+                
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Nama kamu..."
+                    value={senderName}
+                    onChange={(e) => setSenderName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 focus:border-pink-400 focus:outline-none"
+                  />
+                  
+                  <input
+                    type="text"
+                    placeholder="Nama orang yang ingin kamu kirimi lagu..."
+                    value={receiverName}
+                    onChange={(e) => setReceiverName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 focus:border-pink-400 focus:outline-none"
+                  />
+                  
+                  <input
+                    type="text"
+                    placeholder="Judul lagu..."
+                    value={songTitle}
+                    onChange={(e) => setSongTitle(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 focus:border-pink-400 focus:outline-none"
+                  />
+                  
+                  <input
+                    type="text"
+                    placeholder="Artis..."
+                    value={songArtist}
+                    onChange={(e) => setSongArtist(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 focus:border-pink-400 focus:outline-none"
+                  />
+                  
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 text-white border border-white/30 focus:border-pink-400 focus:outline-none"
+                  >
+                    <option value="love">💕 Love</option>
+                    <option value="friendship">👫 Friendship</option>
+                    <option value="family">👨‍👩‍👧‍👦 Family</option>
+                    <option value="inspiration">✨ Inspiration</option>
+                    <option value="apology">🙏 Apology</option>
+                    <option value="celebration">🎉 Celebration</option>
+                  </select>
+                  
+                  <textarea
+                    placeholder="Pesan kamu..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    rows="4"
+                    className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/60 border border-white/30 focus:border-pink-400 focus:outline-none resize-none"
+                  />
+                  
+                  <button
+                    onClick={async () => {
+                      if (!senderName.trim() || !receiverName.trim() || !songTitle.trim()) {
+                        alert('Mohon isi nama pengirim, penerima, dan judul lagu!');
+                        return;
+                      }
+                      
+                      try {
+                        await sendDedication({
+                          senderName: senderName.trim(),
+                          receiverName: receiverName.trim(),
+                          songTitle: songTitle.trim(),
+                          songArtist: songArtist.trim(),
+                          message: message.trim(),
+                          category: category,
+                          isPublic: true,
+                          preview: null // Bisa ditambahkan dari hasil pencarian
+                        });
+                        
+                        setSongTitle('');
+                        setSongArtist('');
+                        setMessage('');
+                        setCategory('love');
+                        getAllDedications(20);
+                        alert('💝 Dedication berhasil dikirim!');
+                      } catch (error) {
+                        alert('❌ Gagal mengirim dedication: ' + error.message);
+                      }
+                    }}
+                    className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-5 h-5" />
+                    Kirim Dedication
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

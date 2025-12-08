@@ -1,122 +1,616 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+// src/Pages/game/DinoRunner.jsx
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button, Typography, Box, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Chip, CircularProgress, TextField } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { useUserData } from '../../hooks/useFirebaseData';
-import { userService } from '../../service/firebaseService';
-import { useGameOptimization } from '../../hooks/useGameOptimization';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import { Play, Pause, RotateCcw, Trophy, Zap, Heart, Sparkles } from 'lucide-react';
+import './styles/DinoRunner.css';
 
-// 🦕 Enhanced Dino Runner - Optimized and Bug Fixed
 const DinoRunner = () => {
-  const navigate = useNavigate();
-  const { userData } = useUserData();
-  const gameAreaRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animationRef = useRef(null);
+  const audioRef = useRef(null);
   
-  // Game optimization hook
-  const { fps, isMobile, batterySaving, trackGameEvent } = useGameOptimization('dinorunner');
-  
-  // Game states
-  const [gameState, setGameState] = useState('menu'); // menu, playing, paused, completed, failed
-  const [playerName, setPlayerName] = useState("");
-  const [showNameInput, setShowNameInput] = useState(false);
-  const [loading, setLoading] = useState(false);
-  
-  // Game variables
-  const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
-  const [gameSpeed, setGameSpeed] = useState(1);
-  const [distance, setDistance] = useState(0);
-  
-  // Dino states
-  const [dinoY, setDinoY] = useState(300);
-  const [dinoVelocityY, setDinoVelocityY] = useState(0);
-  const [isJumping, setIsJumping] = useState(false);
-  const [isDucking, setIsDucking] = useState(false);
-  
-  // Game objects
+  // Game state dengan tema rainbow dan power-ups
+  const [gameState, setGameState] = useState({
+    status: 'menu', // menu, playing, paused, gameOver
+    score: 0,
+    level: 1,
+    lives: 3,
+    combo: 0,
+    rainbowMode: false,
+    rainbowTimer: 0,
+    powerUps: [],
+    particles: []
+  });
+
+  const [dino, setDino] = useState({
+    x: 100,
+    y: 300,
+    width: 50,
+    height: 50,
+    velocityY: 0,
+    isJumping: false,
+    isDucking: false,
+    color: '#FF6B6B',
+    rainbowTrail: []
+  });
+
   const [obstacles, setObstacles] = useState([]);
   const [clouds, setClouds] = useState([]);
-  const [stars, setStars] = useState([]);
-  const [particles, setParticles] = useState([]);
-  
-  // Game settings
-  const GAME_HEIGHT = 400;
-  const GROUND_Y = 350;
-  const DINO_X = 100;
-  const GRAVITY = 0.8;
-  const JUMP_FORCE = -15;
-  
-  // Obstacle types
-  const obstacleTypes = [
-    { width: 30, height: 50, color: 'bg-red-500', type: 'cactus_small', points: 10 },
-    { width: 40, height: 70, color: 'bg-red-600', type: 'cactus_large', points: 15 },
-    { width: 60, height: 30, color: 'bg-gray-600', type: 'bird', points: 20, flying: true }
-  ];
+  const [ground, setGround] = useState({ y: 350, segments: [] });
 
-  // Initialize game
-  const initializeGame = useCallback(() => {
-    setGameState('playing');
-    setScore(0);
-    setDistance(0);
-    setGameSpeed(1);
-    setDinoY(GROUND_Y - 50);
-    setDinoVelocityY(0);
-    setIsJumping(false);
-    setIsDucking(false);
-    setObstacles([]);
-    setParticles([]);
-    
-    // Track game start
-    trackGameEvent('game_start', { game: 'dinorunner' });
-    
-    // Load high score
-    if (userData?.uid) {
-      const savedHighScore = localStorage.getItem(`dino_highscore_${userData.uid}`);
-      setHighScore(parseInt(savedHighScore) || 0);
+  const [selectedDino, setSelectedDino] = useState('rainbow');
+  const [showSettings, setShowSettings] = useState(false);
+  const [volume, setVolume] = useState(0.7);
+  const [difficulty, setDifficulty] = useState('normal');
+
+  // Dino themes dengan animasi dan efek visual
+  const DINO_THEMES = {
+    rainbow: {
+      name: '🌈 Rainbow Dino',
+      colors: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'],
+      jumpPower: -12,
+      special: 'rainbow-trail'
+    },
+    neon: {
+      name: '⚡ Neon Dino',
+      colors: ['#00FFFF', '#FF00FF', '#FFFF00'],
+      jumpPower: -14,
+      special: 'glow-effect'
+    },
+    galaxy: {
+      name: '🌌 Galaxy Dino',
+      colors: ['#9D4EDD', '#C77DFF', '#E0AAFF'],
+      jumpPower: -10,
+      special: 'star-particles'
+    },
+    fire: {
+      name: '🔥 Fire Dino',
+      colors: ['#FF4500', '#FF6347', '#FFD700'],
+      jumpPower: -15,
+      special: 'fire-trail'
     }
-  }, [userData, trackGameEvent]);
+  };
 
-  // Handle jump
+  // Obstacle types dengan animasi dan efek
+  const OBSTACLE_TYPES = {
+    cactus: { 
+      width: 40, 
+      height: 60, 
+      color: '#228B22', 
+      emoji: '🌵',
+      points: 10,
+      effect: 'none'
+    },
+    bird: { 
+      width: 50, 
+      height: 40, 
+      color: '#FF6B6B', 
+      emoji: '🦅',
+      points: 20,
+      effect: 'fly-high'
+    },
+    rock: { 
+      width: 45, 
+      height: 45, 
+      color: '#8B4513', 
+      emoji: '🪨',
+      points: 15,
+      effect: 'duck-required'
+    },
+    rainbow: { 
+      width: 60, 
+      height: 50, 
+      color: '#FF69B4', 
+      emoji: '🌈',
+      points: 50,
+      effect: 'bonus-points'
+    }
+  };
+
+  // Power-ups dengan animasi dan efek spesial
+  const POWER_UPS = {
+    magnet: {
+      name: '🧲 Magnet',
+      duration: 5000,
+      effect: 'attract-food',
+      color: '#FFD700'
+    },
+    shield: {
+      name: '🛡️ Shield',
+      duration: 8000,
+      effect: 'invincible',
+      color: '#00FFFF'
+    },
+    speed: {
+      name: '⚡ Speed Boost',
+      duration: 6000,
+      effect: 'double-speed',
+      color: '#FF00FF'
+    },
+    rainbow: {
+      name: '🌈 Rainbow Mode',
+      duration: 10000,
+      effect: 'rainbow-trail',
+      color: '#FF69B4'
+    }
+  };
+
+  // Initialize game dengan animasi dan efek visual
+  useEffect(() => {
+    initializeGround();
+    initializeClouds();
+    initializeParticles();
+    
+    // Background music
+    audioRef.current = new Audio('/sounds/dino-music.mp3');
+    audioRef.current.loop = true;
+    audioRef.current.volume = volume;
+  }, []);
+
+  // Initialize ground dengan segments
+  const initializeGround = () => {
+    const segments = [];
+    for (let i = 0; i < 50; i++) {
+      segments.push({
+        x: i * 40,
+        height: Math.random() * 10 + 5,
+        color: `hsl(${120 + Math.random() * 30}, 70%, 50%)`
+      });
+    }
+    setGround(prev => ({ ...prev, segments }));
+  };
+
+  // Initialize clouds dengan animasi
+  const initializeClouds = () => {
+    const clouds = [];
+    for (let i = 0; i < 8; i++) {
+      clouds.push({
+        x: Math.random() * 1000,
+        y: Math.random() * 200 + 50,
+        size: Math.random() * 40 + 30,
+        speed: Math.random() * 2 + 1,
+        opacity: Math.random() * 0.5 + 0.3,
+        emoji: ['☁️', '⛅', '🌤️'][Math.floor(Math.random() * 3)]
+      });
+    }
+    setClouds(clouds);
+  };
+
+  // Particle system untuk efek visual
+  const createParticles = (x, y, color, count = 10) => {
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        id: Date.now() + i,
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 10,
+        vy: (Math.random() - 0.5) * 10,
+        color,
+        size: Math.random() * 6 + 2,
+        life: 30,
+        type: 'effect'
+      });
+    }
+    
+    setGameState(prev => ({
+      ...prev,
+      particles: [...prev.particles, ...particles]
+    }));
+  };
+
+  // Rainbow trail effect untuk dino
+  const createRainbowTrail = (x, y) => {
+    if (!gameState.rainbowMode) return;
+
+    const colors = DINO_THEMES.rainbow.colors;
+    const trailParticles = [];
+    
+    for (let i = 0; i < 7; i++) {
+      trailParticles.push({
+        id: Date.now() + i,
+        x: x + Math.random() * 20 - 10,
+        y: y + Math.random() * 20 - 10,
+        vx: (Math.random() - 0.5) * 3,
+        vy: (Math.random() - 0.5) * 3,
+        color: colors[i % colors.length],
+        size: Math.random() * 4 + 1,
+        life: 25,
+        type: 'rainbow-trail'
+      });
+    }
+    
+    setGameState(prev => ({
+      ...prev,
+      particles: [...prev.particles, ...trailParticles]
+    }));
+  };
+
+  // Jump system dengan animasi smooth dan efek visual
   const jump = useCallback(() => {
-    if (!isJumping && dinoY >= GROUND_Y - 60) {
-      setDinoVelocityY(JUMP_FORCE);
-      setIsJumping(true);
-      trackGameEvent('jump', { game: 'dinorunner' });
-    }
-  }, [isJumping, dinoY, trackGameEvent]);
+    if (dino.isJumping || gameState.status !== 'playing') return;
 
-  // Handle duck
+    setDino(prev => ({
+      ...prev,
+      velocityY: DINO_THEMES[selectedDino].jumpPower,
+      isJumping: true
+    }));
+
+    // Create jump particles
+    createParticles(dino.x + dino.width/2, dino.y + dino.height, '#FFFFFF', 8);
+    
+    // Rainbow trail
+    createRainbowTrail(dino.x, dino.y);
+    
+    playSound('jump');
+  }, [dino.isJumping, gameState.status, selectedDino, dino.x, dino.y]);
+
+  // Duck system
   const duck = useCallback((isDucking) => {
-    setIsDucking(isDucking);
-    if (isDucking) {
-      trackGameEvent('duck', { game: 'dinorunner' });
+    if (gameState.status !== 'playing') return;
+
+    setDino(prev => ({
+      ...prev,
+      isDucking: isDucking,
+      height: isDucking ? 25 : 50
+    }));
+  }, [gameState.status]);
+
+  // Spawn obstacles dengan sistem level yang balanced
+  const spawnObstacle = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+
+    const types = Object.keys(OBSTACLE_TYPES);
+    const weights = [0.5, 0.2, 0.2, 0.1]; // Normal distribution
+    const randomType = weightedRandom(types, weights);
+    
+    const obstacle = {
+      id: Date.now() + Math.random(),
+      x: 850,
+      y: randomType === 'bird' ? Math.random() * 200 + 100 : 300,
+      ...OBSTACLE_TYPES[randomType],
+      speed: 5 + (gameState.level * 0.5) + Math.random() * 2,
+      passed: false
+    };
+
+    setObstacles(prev => [...prev, obstacle]);
+
+    // Schedule next spawn
+    const spawnDelay = Math.max(1000, 2000 - (gameState.level * 100));
+    setTimeout(spawnObstacle, spawnDelay + Math.random() * 1000);
+  }, [gameState.status, gameState.level]);
+
+  // Weighted random selection
+  const weightedRandom = (items, weights) => {
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (let i = 0; i < items.length; i++) {
+      random -= weights[i];
+      if (random <= 0) return items[i];
     }
-  }, [trackGameEvent]);
+    return items[items.length - 1];
+  };
+
+  // Power-up spawning
+  const spawnPowerUp = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+    if (Math.random() < 0.05) { // 5% chance
+      
+      const types = Object.keys(POWER_UPS);
+      const randomType = types[Math.floor(Math.random() * types.length)];
+      
+      const powerUp = {
+        id: Date.now() + Math.random(),
+        x: 850,
+        y: 200 + Math.random() * 100,
+        width: 40,
+        height: 40,
+        type: randomType,
+        ...POWER_UPS[randomType],
+        speed: 3
+      };
+
+      setGameState(prev => ({
+        ...prev,
+        powerUps: [...prev.powerUps, powerUp]
+      }));
+    }
+
+    setTimeout(spawnPowerUp, 15000 + Math.random() * 10000);
+  }, [gameState.status]);
+
+  // Collision detection yang akurat dan efek visual
+  const checkCollisions = useCallback(() => {
+    // Player-obstacle collisions
+    obstacles.forEach(obstacle => {
+      if (obstacle.passed) return;
+
+      const playerRect = {
+        x: dino.x,
+        y: dino.y,
+        width: dino.width,
+        height: dino.height
+      };
+
+      const obstacleRect = {
+        x: obstacle.x,
+        y: obstacle.y,
+        width: obstacle.width,
+        height: obstacle.height
+      };
+
+      // Check collision
+      if (playerRect.x < obstacleRect.x + obstacleRect.width &&
+          playerRect.x + playerRect.width > obstacleRect.x &&
+          playerRect.y < obstacleRect.y + obstacleRect.height &&
+          playerRect.y + playerRect.height > obstacleRect.y) {
+        
+        // Handle collision based on obstacle type
+        if (obstacle.type === 'rock' && dino.isDucking) {
+          // Player successfully ducked under rock
+          obstacle.passed = true;
+          setGameState(prev => ({ ...prev, score: prev.score + obstacle.points }));
+          createParticles(obstacle.x, obstacle.y, '#FFD700', 15);
+          playSound('success');
+        } else {
+          // Player hit obstacle
+          if (!gameState.rainbowMode) {
+            setGameState(prev => ({ ...prev, lives: prev.lives - 1 }));
+            createParticles(dino.x + dino.width/2, dino.y + dino.height/2, '#FF0000', 20);
+            playSound('hit');
+            
+            if (prev.lives <= 1) {
+              setGameState(prev => ({ ...prev, status: 'gameOver' }));
+              playSound('gameOver');
+            }
+          }
+        }
+      }
+
+      // Check if passed obstacle
+      if (obstacle.x + obstacle.width < dino.x && !obstacle.passed) {
+        obstacle.passed = true;
+        setGameState(prev => ({ 
+          ...prev, 
+          score: prev.score + obstacle.points,
+          combo: prev.combo + 1
+        }));
+      }
+    });
+
+    // Player-powerup collisions
+    gameState.powerUps.forEach(powerUp => {
+      const distance = Math.sqrt(
+        Math.pow(dino.x + dino.width/2 - (powerUp.x + powerUp.width/2), 2) +
+        Math.pow(dino.y + dino.height/2 - (powerUp.y + powerUp.height/2), 2)
+      );
+
+      if (distance < 30) {
+        // Activate power-up
+        activatePowerUp(powerUp);
+        createParticles(powerUp.x, powerUp.y, powerUp.color, 20);
+        playSound('powerUp');
+      }
+    });
+  }, [obstacles, dino, gameState.rainbowMode, gameState.powerUps]);
+
+  // Activate power-up dengan efek visual
+  const activatePowerUp = (powerUp) => {
+    setGameState(prev => ({
+      ...prev,
+      powerUps: prev.powerUps.filter(p => p.id !== powerUp.id)
+    }));
+
+    switch(powerUp.effect) {
+      case 'rainbow-mode':
+        setGameState(prev => ({ 
+          ...prev, 
+          rainbowMode: true, 
+          rainbowTimer: 300 
+        }));
+        break;
+      case 'invincible':
+        // Shield effect
+        break;
+      case 'double-speed':
+        // Speed boost
+        break;
+    }
+  };
+
+  // Game loop utama dengan animasi smooth
+  const gameLoop = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+
+    // Update dino physics
+    setDino(prev => {
+      let newY = prev.y + prev.velocityY;
+      let newVelocityY = prev.velocityY + 0.6; // Gravity
+      
+      // Ground collision
+      if (newY >= ground.y - prev.height) {
+        newY = ground.y - prev.height;
+        newVelocityY = 0;
+        
+        return {
+          ...prev,
+          y: newY,
+          velocityY: newVelocityY,
+          isJumping: false
+        };
+      }
+
+      // Rainbow trail
+      if (gameState.rainbowMode) {
+        createRainbowTrail(prev.x, prev.y);
+      }
+
+      return {
+        ...prev,
+        y: newY,
+        velocityY: newVelocityY
+      };
+    });
+
+    // Update obstacles
+    setObstacles(prev => prev.map(obstacle => ({
+      ...obstacle,
+      x: obstacle.x - obstacle.speed
+    })).filter(obstacle => obstacle.x > -100));
+
+    // Update power-ups
+    setGameState(prev => ({
+      ...prev,
+      powerUps: prev.powerUps.map(powerUp => ({
+        ...powerUp,
+        x: powerUp.x - powerUp.speed
+      })).filter(powerUp => powerUp.x > -50)
+    }));
+
+    // Update clouds
+    setClouds(prev => prev.map(cloud => ({
+      ...cloud,
+      x: cloud.x - cloud.speed
+    })).map(cloud => 
+      cloud.x < -100 ? { ...cloud, x: 850 } : cloud
+    ));
+
+    // Update particles
+    setGameState(prev => ({
+      ...prev,
+      particles: prev.particles.map(particle => ({
+        ...particle,
+        x: particle.x + particle.vx,
+        y: particle.y + particle.vy,
+        vx: particle.vx * 0.98,
+        vy: particle.vy * 0.98,
+        life: particle.life - 1
+      })).filter(particle => particle.life > 0)
+    }));
+
+    // Update rainbow timer
+    if (gameState.rainbowMode) {
+      setGameState(prev => ({
+        ...prev,
+        rainbowTimer: prev.rainbowTimer - 1
+      }));
+      
+      if (gameState.rainbowTimer <= 0) {
+        setGameState(prev => ({ ...prev, rainbowMode: false }));
+      }
+    }
+
+    // Check collisions
+    checkCollisions();
+
+    // Level progression
+    if (gameState.score > gameState.level * 200) {
+      setGameState(prev => ({ ...prev, level: prev.level + 1 }));
+      playSound('levelUp');
+    }
+
+    animationRef.current = requestAnimationFrame(gameLoop);
+  }, [gameState.status, gameState.rainbowMode, gameState.rainbowTimer, checkCollisions, ground.y]);
+
+  // Sound system
+  const playSound = (soundType) => {
+    if (!audioRef.current) return;
+    
+    const sounds = {
+      jump: '/sounds/jump.mp3',
+      hit: '/sounds/hit.mp3',
+      powerUp: '/sounds/power-up.mp3',
+      levelUp: '/sounds/level-up.mp3',
+      gameOver: '/sounds/game-over.mp3',
+      success: '/sounds/success.mp3'
+    };
+
+    const audio = new Audio(sounds[soundType]);
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  };
+
+  // Start/Pause/Resume functions
+  const startGame = () => {
+    setGameState(prev => ({ ...prev, status: 'playing' }));
+    audioRef.current?.play();
+    gameLoop();
+    spawnObstacle();
+    spawnPowerUp();
+  };
+
+  const pauseGame = () => {
+    setGameState(prev => ({ ...prev, status: 'paused' }));
+    audioRef.current?.pause();
+    cancelAnimationFrame(animationRef.current);
+  };
+
+  const resumeGame = () => {
+    setGameState(prev => ({ ...prev, status: 'playing' }));
+    audioRef.current?.play();
+    gameLoop();
+  };
+
+  const restartGame = () => {
+    cancelAnimationFrame(animationRef.current);
+    audioRef.current?.pause();
+    audioRef.current.currentTime = 0;
+    
+    setGameState({
+      status: 'menu',
+      score: 0,
+      level: 1,
+      lives: 3,
+      combo: 0,
+      rainbowMode: false,
+      rainbowTimer: 0,
+      powerUps: [],
+      particles: []
+    });
+    
+    setDino({
+      x: 100,
+      y: 300,
+      width: 50,
+      height: 50,
+      velocityY: 0,
+      isJumping: false,
+      isDucking: false,
+      color: DINO_THEMES[selectedDino].colors[0],
+      rainbowTrail: []
+    });
+    
+    setObstacles([]);
+  };
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (gameState !== 'playing') return;
-      
-      switch(e.code) {
-        case 'Space':
+      switch(e.key) {
+        case ' ':
         case 'ArrowUp':
+        case 'w':
+        case 'W':
           e.preventDefault();
-          jump();
+          if (gameState.status === 'menu') startGame();
+          else if (gameState.status === 'playing') jump();
           break;
         case 'ArrowDown':
-          e.preventDefault();
-          duck(true);
+        case 's':
+        case 'S':
+          if (gameState.status === 'playing') duck(true);
+          break;
+        case 'p':
+        case 'P':
+          if (gameState.status === 'playing') pauseGame();
+          else if (gameState.status === 'paused') resumeGame();
           break;
       }
     };
 
     const handleKeyUp = (e) => {
-      if (e.code === 'ArrowDown') {
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
         duck(false);
       }
     };
@@ -128,529 +622,569 @@ const DinoRunner = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameState, jump, duck]);
+  }, [gameState.status, jump, duck, pauseGame, resumeGame]);
 
-  // Touch controls for mobile
-  useEffect(() => {
-    if (!isMobile) return;
-    
-    const handleTouchStart = (e) => {
-      if (gameState !== 'playing') return;
-      
-      const touch = e.touches[0];
-      const gameArea = gameAreaRef.current;
-      if (!gameArea) return;
-      
-      const rect = gameArea.getBoundingClientRect();
-      const touchY = touch.clientY - rect.top;
-      
-      if (touchY < GAME_HEIGHT / 2) {
-        jump();
-      } else {
-        duck(true);
+  // Touch controls untuk mobile dengan gesture yang smooth
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    const startY = touch.clientY;
+
+    const handleTouchEnd = (e) => {
+      const touch = e.changedTouches[0];
+      const endY = touch.clientY;
+      const deltaY = endY - startY;
+
+      if (Math.abs(deltaY) > 30) {
+        if (deltaY < -30) {
+          // Swipe up - jump
+          jump();
+        } else if (deltaY > 30) {
+          // Swipe down - duck
+          duck(true);
+          setTimeout(() => duck(false), 500);
+        }
       }
+
+      document.removeEventListener('touchend', handleTouchEnd);
     };
 
-    const handleTouchEnd = () => {
-      duck(false);
-    };
-
-    const gameArea = gameAreaRef.current;
-    if (gameArea) {
-      gameArea.addEventListener('touchstart', handleTouchStart);
-      gameArea.addEventListener('touchend', handleTouchEnd);
-    }
-    
-    return () => {
-      if (gameArea) {
-        gameArea.removeEventListener('touchstart', handleTouchStart);
-        gameArea.removeEventListener('touchend', handleTouchEnd);
-      }
-    };
-  }, [gameState, isMobile, jump, duck]);
-
-  // Game loop
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    const gameLoop = setInterval(() => {
-      // Update dino physics
-      setDinoY(prevY => {
-        const newY = prevY + dinoVelocityY;
-        setDinoVelocityY(prevVel => {
-          const newVel = prevVel + GRAVITY;
-          if (newY >= GROUND_Y - (isDucking ? 30 : 50)) {
-            setIsJumping(false);
-            return 0;
-          }
-          return newVel;
-        });
-        return Math.min(newY, GROUND_Y - (isDucking ? 30 : 50));
-      });
-
-      // Update distance and score
-      setDistance(prev => prev + gameSpeed);
-      setScore(prev => Math.floor(distance / 10));
-
-      // Increase game speed
-      setGameSpeed(prev => Math.min(prev + 0.001, 3));
-
-      // Spawn obstacles
-      setObstacles(prev => {
-        let newObstacles = prev.filter(obs => obs.x > -100);
-        
-        if (Math.random() < 0.02 * gameSpeed) {
-          const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-          newObstacles.push({
-            id: Date.now() + Math.random(),
-            x: 800,
-            y: type.flying ? GROUND_Y - 100 - Math.random() * 100 : GROUND_Y - type.height,
-            ...type,
-            passed: false
-          });
-        }
-        
-        return newObstacles.map(obs => ({
-          ...obs,
-          x: obs.x - 5 * gameSpeed
-        }));
-      });
-
-      // Spawn clouds and stars
-      setClouds(prev => {
-        let newClouds = prev.filter(cloud => cloud.x > -100);
-        if (Math.random() < 0.01) {
-          newClouds.push({
-            id: Date.now(),
-            x: 800,
-            y: 50 + Math.random() * 100,
-            speed: 0.5 + Math.random() * 0.5,
-            size: 20 + Math.random() * 30
-          });
-        }
-        return newClouds.map(cloud => ({ ...cloud, x: cloud.x - cloud.speed }));
-      });
-
-      setStars(prev => {
-        let newStars = prev.filter(star => star.x > -10);
-        if (Math.random() < 0.005) {
-          newStars.push({
-            id: Date.now(),
-            x: 800,
-            y: Math.random() * 200,
-            speed: 1 + Math.random() * 2
-          });
-        }
-        return newStars.map(star => ({ ...star, x: star.x - star.speed }));
-      });
-
-      // Create particles
-      setParticles(prev => {
-        let newParticles = prev.filter(p => p.life > 0);
-        if (Math.random() < 0.1) {
-          newParticles.push({
-            id: Date.now(),
-            x: DINO_X + 20,
-            y: dinoY + 25,
-            vx: -2 - Math.random() * 2,
-            vy: -1 - Math.random() * 2,
-            life: 30
-          });
-        }
-        return newParticles.map(p => ({
-          ...p,
-          x: p.x + p.vx,
-          y: p.y + p.vy,
-          life: p.life - 1
-        }));
-      });
-
-      // Check collisions
-      setObstacles(prev => {
-        return prev.map(obs => {
-          if (obs.passed) return obs;
-          
-          const dinoHeight = isDucking ? 30 : 50;
-          const collision = 
-            DINO_X < obs.x + obs.width &&
-            DINO_X + 40 > obs.x &&
-            dinoY < obs.y + obs.height &&
-            dinoY + dinoHeight > obs.y;
-          
-          if (collision) {
-            setGameState('failed');
-            trackGameEvent('game_over', { game: 'dinorunner', score });
-            return { ...obs, passed: true };
-          }
-          
-          if (obs.x < DINO_X && !obs.passed) {
-            setScore(prev => prev + obs.points);
-            return { ...obs, passed: true };
-          }
-          
-          return obs;
-        });
-      });
-    }, 50);
-
-    return () => clearInterval(gameLoop);
-  }, [gameState, dinoY, dinoVelocityY, isDucking, gameSpeed, distance, score, trackGameEvent]);
-
-  // Save high score
-  useEffect(() => {
-    if (gameState === 'failed' && score > highScore && userData?.uid) {
-      setHighScore(score);
-      localStorage.setItem(`dino_highscore_${userData.uid}`, score.toString());
-      
-      // Save to leaderboard
-      userService.addScore(userData.uid, 'dinorunner', score);
-    }
-  }, [gameState, score, highScore, userData]);
-
-  const resetGame = () => {
-    setGameState('menu');
-    setShowNameInput(false);
-    setPlayerName("");
+    document.addEventListener('touchend', handleTouchEnd);
   };
 
-  const startGame = () => {
-    if (playerName.trim()) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        initializeGame();
-      }, 1000);
+  // Render game canvas
+  const renderCanvas = () => {
+    const canvas = document.getElementById('dino-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Clear canvas dengan gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, '#87CEEB');
+    gradient.addColorStop(1, '#98D8E8');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 800, 400);
+
+    // Draw clouds dengan animasi
+    clouds.forEach(cloud => {
+      ctx.save();
+      ctx.globalAlpha = cloud.opacity;
+      ctx.font = `${cloud.size}px Arial`;
+      ctx.fillText(cloud.emoji, cloud.x, cloud.y);
+      ctx.restore();
+    });
+
+    // Draw ground dengan animasi
+    ctx.fillStyle = '#228B22';
+    ground.segments.forEach(segment => {
+      ctx.fillRect(segment.x, ground.y, 40, segment.height);
+    });
+
+    // Draw dino dengan animasi dan efek visual
+    const theme = DINO_THEMES[selectedDino];
+    
+    // Rainbow trail
+    if (gameState.rainbowMode) {
+      gameState.particles.filter(p => p.type === 'rainbow-trail').forEach(particle => {
+        ctx.save();
+        ctx.globalAlpha = particle.life / 25;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // Dino body dengan warna tema
+    ctx.save();
+    
+    // Shadow effect
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(dino.x + 5, ground.y - 5, dino.width, 10);
+    
+    // Dino body
+    if (dino.isDucking) {
+      // Ducking position
+      ctx.fillStyle = theme.colors[0];
+      ctx.fillRect(dino.x, dino.y + 25, dino.width, 25);
+      
+      // Head
+      ctx.fillStyle = theme.colors[1] || theme.colors[0];
+      ctx.beginPath();
+      ctx.arc(dino.x + dino.width/2, dino.y + 37, 12, 0, Math.PI * 2);
+      ctx.fill();
     } else {
-      setShowNameInput(true);
+      // Normal position
+      ctx.fillStyle = theme.colors[0];
+      ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+      
+      // Head
+      ctx.fillStyle = theme.colors[1] || theme.colors[0];
+      ctx.beginPath();
+      ctx.arc(dino.x + dino.width/2, dino.y + 15, 15, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eyes
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(dino.x + dino.width/2 - 8, dino.y + 12, 3, 0, Math.PI * 2);
+      ctx.arc(dino.x + dino.width/2 + 8, dino.y + 12, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(dino.x + dino.width/2 - 8, dino.y + 12, 1, 0, Math.PI * 2);
+      ctx.arc(dino.x + dino.width/2 + 8, dino.y + 12, 1, 0, Math.PI * 2);
+      ctx.fill();
     }
+    
+    // Legs animation
+    if (dino.isJumping) {
+      // Jumping legs
+      ctx.strokeStyle = theme.colors[2] || theme.colors[0];
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(dino.x + 15, dino.y + dino.height);
+      ctx.lineTo(dino.x + 10, dino.y + dino.height + 10);
+      ctx.moveTo(dino.x + 35, dino.y + dino.height);
+      ctx.lineTo(dino.x + 40, dino.y + dino.height + 10);
+      ctx.stroke();
+    }
+    
+    ctx.restore();
+
+    // Draw obstacles dengan animasi
+    obstacles.forEach(obstacle => {
+      ctx.save();
+      
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(obstacle.x + 3, obstacle.y + obstacle.height - 3, obstacle.width, 6);
+      
+      // Main obstacle
+      ctx.fillStyle = obstacle.color;
+      if (obstacle.type === 'cactus') {
+        // Draw cactus shape
+        ctx.fillRect(obstacle.x + 15, obstacle.y + 20, 10, 40);
+        ctx.fillRect(obstacle.x + 5, obstacle.y + 30, 10, 20);
+        ctx.fillRect(obstacle.x + 25, obstacle.y + 25, 10, 25);
+      } else if (obstacle.type === 'bird') {
+        // Draw bird shape
+        ctx.beginPath();
+        ctx.ellipse(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, 
+                   obstacle.width/2, obstacle.height/2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      }
+      
+      // Emoji overlay
+      ctx.font = `${obstacle.height * 0.8}px Arial`;
+      ctx.fillText(obstacle.emoji, obstacle.x + obstacle.width/4, obstacle.y + obstacle.height/2);
+      
+      ctx.restore();
+    });
+
+    // Draw power-ups dengan animasi
+    gameState.powerUps.forEach(powerUp => {
+      ctx.save();
+      
+      // Glow effect
+      ctx.shadowColor = powerUp.color;
+      ctx.shadowBlur = 20;
+      
+      // Power-up shape
+      ctx.fillStyle = powerUp.color;
+      ctx.beginPath();
+      ctx.arc(powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2, powerUp.width/2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Icon
+      ctx.font = `${powerUp.height * 0.6}px Arial`;
+      ctx.fillText(powerUp.name.split(' ')[0], powerUp.x + powerUp.width/4, powerUp.y + powerUp.height/2);
+      
+      ctx.restore();
+    });
+
+    // Draw particles
+    gameState.particles.forEach(particle => {
+      ctx.save();
+      ctx.globalAlpha = particle.life / 30;
+      ctx.fillStyle = particle.color;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
   };
 
-  // Render menu
-  if (gameState === 'menu') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <motion.h1 
-              className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              🦕 Dino Runner
-            </motion.h1>
-            <p className="text-xl text-gray-300">Lari dari kejaran waktu dan rintangan!</p>
-          </div>
-
-          {/* Game Stats */}
-          {userData && (
-            <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8">
-              <Typography variant="h6" className="mb-4 text-center">📊 Statistik Kamu</Typography>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <Typography variant="h4" className="text-purple-400">{userData.gameStats?.dinorunner?.gamesPlayed || 0}</Typography>
-                  <Typography variant="body2" className="text-gray-400">Games Played</Typography>
-                </div>
-                <div className="text-center">
-                  <Typography variant="h4" className="text-blue-400">{highScore}</Typography>
-                  <Typography variant="body2" className="text-gray-400">High Score</Typography>
-                </div>
-                <div className="text-center">
-                  <Typography variant="h4" className="text-green-400">{userData.gameStats?.dinorunner?.bestDistance || 0}m</Typography>
-                  <Typography variant="body2" className="text-gray-400">Best Distance</Typography>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Controls Info */}
-          <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8">
-            <Typography variant="h6" className="text-white text-center mb-4">🎮 Kontrol</Typography>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="text-center">
-                <ArrowUpwardIcon className="text-4xl text-blue-400 mb-2" />
-                <Typography variant="body1" className="text-white">Lompat</Typography>
-                <Typography variant="body2" className="text-gray-400">Space / Up Arrow / Tap atas</Typography>
-              </div>
-              <div className="text-center">
-                <ArrowDownwardIcon className="text-4xl text-green-400 mb-2" />
-                <Typography variant="body1" className="text-white">Merunduk</Typography>
-                <Typography variant="body2" className="text-gray-400">Down Arrow / Tap bawah</Typography>
-              </div>
-            </div>
-          </div>
-
-          {/* Name Input */}
-          {showNameInput && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8"
-            >
-              <Typography variant="h6" className="text-white text-center mb-4">
-                Siapa nama kamu?
-              </Typography>
-              <TextField
-                fullWidth
-                variant="outlined"
-                placeholder="Masukkan nama kamu..."
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                className="mb-4"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    '& fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#8a2be2',
-                    },
-                  },
-                }}
-              />
-            </motion.div>
-          )}
-
-          {/* Start Button */}
-          <div className="text-center">
-            <Button
-              variant="contained"
-              size="large"
-              onClick={startGame}
-              disabled={loading}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold"
-            >
-              {loading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                '▶️ Mulai Bermain'
-              )}
-            </Button>
-          </div>
-
-          {/* Back Button */}
-          <div className="text-center mt-4">
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/game')}
-              className="text-white border-white hover:bg-white hover:text-purple-900"
-            >
-              ← Kembali ke Games
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Render game
+  // Main UI dengan animasi lucu dan tema rainbow
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Game UI */}
-        <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="outlined"
-              onClick={resetGame}
-              className="text-white border-white hover:bg-white hover:text-purple-900"
-              startIcon={<RefreshIcon />}
-            >
-              Menu
-            </Button>
-            
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <Typography variant="h6" className="text-purple-400">
-                  Score: {score}
-                </Typography>
-              </div>
-              <div className="text-center">
-                <Typography variant="h6" className="text-blue-400">
-                  High: {highScore}
-                </Typography>
-              </div>
-              <div className="text-center">
-                <Typography variant="h6" className="text-green-400">
-                  {Math.floor(distance)}m
-                </Typography>
-              </div>
-            </div>
-            
-            <Chip 
-              label={`FPS: ${fps}`} 
-              color={fps >= 50 ? "success" : fps >= 30 ? "warning" : "error"}
-            />
-          </div>
-        </div>
-
-        {/* Game Area */}
-        <div 
-          ref={gameAreaRef}
-          className="relative bg-gradient-to-b from-blue-400 to-green-400 rounded-2xl overflow-hidden"
-          style={{ 
-            height: GAME_HEIGHT,
-            cursor: 'pointer',
-            touchAction: 'none'
-          }}
-        >
-          {/* Background elements */}
-          {clouds.map(cloud => (
-            <div
-              key={cloud.id}
-              className="absolute text-4xl opacity-70"
-              style={{
-                left: cloud.x,
-                top: cloud.y,
-                fontSize: cloud.size
-              }}
-            >
-              ☁️
-            </div>
-          ))}
-          
-          {stars.map(star => (
-            <div
-              key={star.id}
-              className="absolute text-yellow-300 animate-pulse"
-              style={{
-                left: star.x,
-                top: star.y,
-                fontSize: 12
-              }}
-            >
-              ⭐
-            </div>
-          ))}
-
-          {/* Ground */}
-          <div 
-            className="absolute bottom-0 w-full bg-gradient-to-t from-green-600 to-green-500"
-            style={{ height: GAME_HEIGHT - GROUND_Y }}
-          />
-
-          {/* Dino */}
+    <div className="dino-runner-container">
+      {/* Animated Background */}
+      <div className="animated-bg">
+        <div className="sky-gradient"></div>
+        {clouds.map((cloud, i) => (
           <motion.div
-            className="absolute flex items-center justify-center"
+            key={i}
+            className="cloud"
             style={{
-              left: DINO_X,
-              top: dinoY,
-              width: 40,
-              height: isDucking ? 30 : 50
+              left: cloud.x,
+              top: cloud.y,
+              fontSize: cloud.size,
+              opacity: cloud.opacity
             }}
             animate={{
-              scaleY: isDucking ? 0.6 : 1
+              x: [0, -50, 0],
+              y: [0, 10, 0]
             }}
-            transition={{ duration: 0.1 }}
+            transition={{
+              duration: 10 + Math.random() * 5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
-            <span className="text-4xl">
-              {isDucking ? '🦕' : '🦖'}
-            </span>
+            {cloud.emoji}
           </motion.div>
+        ))}
+      </div>
 
-          {/* Obstacles */}
-          {obstacles.map(obstacle => (
-            <div
-              key={obstacle.id}
-              className={`absolute rounded ${obstacle.color} flex items-center justify-center`}
-              style={{
-                left: obstacle.x,
-                top: obstacle.y,
-                width: obstacle.width,
-                height: obstacle.height
-              }}
+      {/* Game Header dengan animasi */}
+      <motion.div 
+        className="game-header"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      >
+        <div className="header-left">
+          <motion.h1 
+            className="game-title"
+            animate={{ 
+              color: DINO_THEMES[selectedDino].colors
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            🌈 Rainbow Dino Dash
+          </motion.h1>
+          
+          <div className="dino-selection">
+            <span>Pilih Dino: </span>
+            <select 
+              value={selectedDino} 
+              onChange={(e) => setSelectedDino(e.target.value)}
+              className="dino-select"
             >
-              {obstacle.type.includes('cactus') && <span className="text-2xl">🌵</span>}
-              {obstacle.type === 'bird' && <span className="text-2xl">🦅</span>}
+              {Object.entries(DINO_THEMES).map(([key, theme]) => (
+                <option key={key} value={key}>{theme.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="header-right">
+          <div className="score-display">
+            <motion.span 
+              key={gameState.score}
+              initial={{ scale: 1.5, rotate: 360 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="score-number"
+              style={{ color: DINO_THEMES[selectedDino].colors[0] }}
+            >
+              💎 {gameState.score.toLocaleString()}
+            </motion.span>
+          </div>
+          
+          <div className="level-display">
+            <span>Level {gameState.level}</span>
+            <div className="level-bar">
+              <motion.div 
+                className="level-progress"
+                initial={{ width: 0 }}
+                animate={{ width: `${(gameState.score % 200)}%` }}
+                transition={{ duration: 0.5 }}
+                style={{ 
+                  background: `linear-gradient(90deg, ${DINO_THEMES[selectedDino].colors.join(', ')})`
+                }}
+              />
             </div>
-          ))}
+          </div>
 
-          {/* Particles */}
-          {particles.map(particle => (
-            <div
-              key={particle.id}
-              className="absolute w-1 h-1 bg-yellow-400 rounded-full"
-              style={{
-                left: particle.x,
-                top: particle.y,
-                opacity: particle.life / 30
+          <div className="lives-display">
+            {[...Array(gameState.lives)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: i * 0.1, type: "spring" }}
+                className="life-icon"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
+                }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+              >
+                ❤️
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Main Game Area */}
+      <div className="game-area">
+        <canvas
+          id="dino-canvas"
+          ref={canvasRef}
+          width={800}
+          height={400}
+          className="game-canvas"
+          onTouchStart={handleTouchStart}
+        />
+
+        {/* Player Health Bar */}
+        <div className="player-health-bar">
+          <div className="health-label">Dino Health</div>
+          <div className="health-bar-container">
+            <motion.div 
+              className="health-bar"
+              initial={{ width: '100%' }}
+              animate={{ width: `${Math.max(0, (gameState.lives / 3) * 100)}%` }}
+              transition={{ duration: 0.3 }}
+              style={{ 
+                background: `linear-gradient(90deg, ${DINO_THEMES[selectedDino].colors.join(', ')})`
               }}
             />
-          ))}
-
-          {/* Game Over Overlay */}
-          <AnimatePresence>
-            {gameState === 'failed' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/50 flex items-center justify-center"
-              >
-                <div className="text-center">
-                  <div className="text-6xl mb-4">💥</div>
-                  <Typography variant="h4" className="text-white font-bold mb-2">
-                    Game Over!
-                  </Typography>
-                  <Typography variant="h6" className="text-gray-300 mb-4">
-                    Score: {score} | Distance: {Math.floor(distance)}m
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    onClick={initializeGame}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                    startIcon={<RefreshIcon />}
-                  >
-                    Main Lagi
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </div>
         </div>
 
-        {/* Mobile Controls */}
-        {isMobile && (
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <Button
-              variant="outlined"
-              onTouchStart={jump}
-              className="bg-black/30 text-white border-white/50 py-4"
-              startIcon={<ArrowUpwardIcon />}
+        {/* Power-ups Display */}
+        <div className="power-ups-display">
+          {gameState.powerUps.map((powerUp, i) => (
+            <motion.div
+              key={i}
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              className="power-up-icon"
+              style={{ 
+                backgroundColor: powerUp.color,
+                boxShadow: `0 0 20px ${powerUp.color}`
+              }}
             >
-              Lompat
-            </Button>
-            <Button
-              variant="outlined"
-              onTouchStart={() => duck(true)}
-              onTouchEnd={() => duck(false)}
-              className="bg-black/30 text-white border-white/50 py-4"
-              startIcon={<ArrowDownwardIcon />}
+              {powerUp.name.split(' ')[0]}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Rainbow Mode Overlay */}
+        <AnimatePresence>
+          {gameState.rainbowMode && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0 }}
+              className="rainbow-mode-overlay"
             >
-              Merunduk
-            </Button>
+              <motion.div
+                animate={{ 
+                  rotate: [0, 360],
+                  scale: [1, 1.2, 1]
+                }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="rainbow-text"
+              >
+                🌈 RAINBOW MODE AKTIF! 🌈
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Control Buttons dengan animasi lucu */}
+      <motion.div 
+        className="control-panel"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.5, type: "spring" }}
+      >
+        {gameState.status === 'menu' && (
+          <div className="menu-screen">
+            <motion.div
+              animate={{ 
+                y: [0, -20, 0],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="menu-dino"
+            >
+              🦕
+            </motion.div>
+            
+            <h2>Selamat Datang di Rainbow Dino Dash!</h2>
+            <p>Lompat, ngek, dan kumpulkan rainbow bersama dino! 🌈</p>
+            
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={startGame}
+              className="start-button"
+              style={{ 
+                background: `linear-gradient(45deg, ${DINO_THEMES[selectedDino].colors.join(', ')})`
+              }}
+            >
+              <Play className="icon" />
+              Mulai Petualangan!
+            </motion.button>
+
+            <div className="menu-instructions">
+              <p><strong>🎮 Kontrol:</strong></p>
+              <p>• SPACE / ↑ untuk lompat</p>
+              <p>• ↓ untuk ngek (duck)</p>
+              <p>• Kumpulkan power-up rainbow!</p>
+            </div>
           </div>
         )}
 
-        {/* Instructions */}
-        <div className="mt-6 bg-black/30 backdrop-blur-lg rounded-2xl p-4">
-          <Typography variant="h6" className="text-white text-center mb-2">
-            🎮 Cara Bermain
-          </Typography>
-          <Typography variant="body2" className="text-gray-300 text-center">
-            {isMobile 
-              ? 'Gunakan tombol di atas untuk lompat dan merunduk' 
-              : 'Tekan Space/Up untuk lompat, Down untuk merunduk'}
-          </Typography>
-        </div>
-      </div>
+        {gameState.status === 'playing' && (
+          <div className="game-controls">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={pauseGame}
+              className="control-btn pause"
+            >
+              <Pause className="icon" />
+            </motion.button>
+
+            <div className="touch-controls">
+              <motion.button
+                whileHover={{ scale: 1.1, backgroundColor: '#4ECDC4' }}
+                whileTap={{ scale: 0.9 }}
+                onClick={jump}
+                className="jump-btn"
+              >
+                <Zap className="icon" />
+                LOMPAT!
+              </motion.button>
+              
+              <motion.button
+                whileHover={{ scale: 1.1, backgroundColor: '#FF6B6B' }}
+                whileTap={{ scale: 0.9 }}
+                onMouseDown={() => duck(true)}
+                onMouseUp={() => duck(false)}
+                onTouchStart={() => duck(true)}
+                onTouchEnd={() => duck(false)}
+                className="duck-btn"
+              >
+                ↓ NGEK
+              </motion.button>
+            </div>
+          </div>
+        )}
+
+        {gameState.status === 'paused' && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="pause-screen"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="pause-icon"
+            >
+              ⏸️
+            </motion.div>
+            <h3>Game Dijeda</h3>
+            <p>Dino sedang istirahat... 🦕💤</p>
+            <button onClick={resumeGame} className="resume-btn">
+              <Play className="icon" />
+              Lanjutkan
+            </button>
+          </motion.div>
+        )}
+
+        {gameState.status === 'gameOver' && (
+          <motion.div
+            initial={{ scale: 0, y: 100 }}
+            animate={{ scale: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            className="game-over-screen"
+          >
+            <motion.div
+              animate={{ 
+                rotate: [0, -15, 15, -15, 0],
+                y: [0, -30, 0]
+              }}
+              transition={{ duration: 1, repeat: Infinity }}
+              className="sad-dino"
+            >
+              🦕💥
+            </motion.div>
+            
+            <h3>Oh Tidak! Dino Tabrakan!</h3>
+            
+            <div className="final-stats">
+              <motion.div 
+                className="stat-item"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <Trophy className="icon" />
+                <span>Score: {gameState.score.toLocaleString()}</span>
+              </motion.div>
+              
+              <motion.div 
+                className="stat-item"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Zap className="icon" />
+                <span>Level: {gameState.level}</span>
+              </motion.div>
+              
+              <motion.div 
+                className="stat-item"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <Heart className="icon" />
+                <span>Combo: {gameState.combo}</span>
+              </motion.div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={restartGame}
+              className="restart-button"
+              style={{ 
+                background: `linear-gradient(45deg, ${DINO_THEMES[selectedDino].colors.join(', ')})`
+              }}
+            >
+              <RotateCcw className="icon" />
+              Coba Lagi
+            </motion.button>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* Settings Toggle */}
+      <motion.button
+        whileHover={{ scale: 1.1, rotate: 180 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setShowSettings(!showSettings)}
+        className="settings-toggle"
+      >
+        ⚙️
+      </motion.button>
     </div>
   );
 };
 
 export default DinoRunner;
+

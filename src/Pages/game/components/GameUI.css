@@ -1,0 +1,170 @@
+/* GameUI.css */
+.game-ui-container {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-display {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 15px 25px;
+  border-radius: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.score-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: scoreGlow 2s infinite;
+}
+
+@keyframes scoreGlow {
+  0%, 100% { text-shadow: 0 0 10px currentColor; }
+  50% { text-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+}
+
+.level-info, .money-info, .lives-info {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 15px;
+}
+
+.control-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.control-btn.start {
+  background: linear-gradient(45deg, #4CAF50, #45A049);
+}
+
+.control-btn.pause {
+  background: linear-gradient(45deg, #FF9800, #F57C00);
+}
+
+.control-btn.restart {
+  background: linear-gradient(45deg, #F44336, #D32F2F);
+}
+
+.control-btn.settings {
+  background: linear-gradient(45deg, #9C27B0, #7B1FA2);
+}
+
+.control-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.wave-progress {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 25px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.wave-info {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.wave-bar {
+  width: 200px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wave-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ECDC4, #45B7D1);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .game-ui-container {
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+  }
+  
+  .score-display {
+    flex-direction: row;
+    gap: 15px;
+  }
+  
+  .score-number {
+    font-size: 1.5rem;
+  }
+  
+  .control-buttons {
+    gap: 10px;
+  }
+  
+  .control-btn {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .wave-progress {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    margin-top: 10px;
+  }
+}
+

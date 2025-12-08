@@ -1,858 +1,1036 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+// src/Pages/game/TowerDefense.jsx
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button, Typography, Box, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Chip, Grid, Card, CardContent } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { useUserData } from '../../hooks/useFirebaseData';
-import { userService } from '../../service/firebaseService';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import WarningIcon from '@mui/icons-material/Warning';
-import ShieldIcon from '@mui/icons-material/Shield';
-import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import { Play, Pause, RotateCcw, Trophy, Zap, Shield, Target, Castle } from 'lucide-react';
+import './styles/TowerDefense.css';
 
-// 🏰 Tower Defense - Defend Kelas XE-4!
 const TowerDefense = () => {
-  const navigate = useNavigate();
-  const { userData } = useUserData();
-  const gameAreaRef = useRef(null);
+  const canvasRef = useRef(null);
+  const animationRef = useRef(null);
+  const audioRef = useRef(null);
   
-  // Game States
-  const [gameState, setGameState] = useState('menu'); // menu, playing, paused, completed, failed
-  const [level, setLevel] = useState(1);
-  const [health, setHealth] = useState(100);
-  const [gold, setGold] = useState(200);
-  const [wave, setWave] = useState(1);
-  const [score, setScore] = useState(0);
-  const [towers, setTowers] = useState([]);
-  const [enemies, setEnemies] = useState([]);
-  const [projectiles, setProjectiles] = useState([]);
-  const [selectedTowerType, setSelectedTowerType] = useState('basic');
-  const [showVictory, setShowVictory] = useState(false);
-  const [gameTime, setGameTime] = useState(0);
+  // Game state dengan tema rainbow dan tower defense
+  const [gameState, setGameState] = useState({
+    status: 'menu', // menu, playing, paused, gameOver
+    score: 0,
+    level: 1,
+    lives: 20,
+    money: 100,
+    wave: 1,
+    enemies: [],
+    towers: [],
+    projectiles: [],
+    particles: [],
+    powerUps: [],
+    rainbowMode: false,
+    rainbowTimer: 0
+  });
 
-  // Tower types
-  const towerTypes = {
-    basic: {
-      name: 'Basic Tower',
-      cost: 50,
-      damage: 20,
-      range: 3,
-      fireRate: 1000,
-      emoji: '🏹',
-      color: 'from-gray-400 to-gray-600',
-      projectileEmoji: '➡️'
+  const [selectedTower, setSelectedTower] = useState('basic');
+  const [showSettings, setShowSettings] = useState(false);
+  const [volume, setVolume] = useState(0.7);
+  const [difficulty, setDifficulty] = useState('normal');
+
+  // Grid system untuk tower defense
+  const GRID_SIZE = 15;
+  const CELL_SIZE = 40;
+  const CANVAS_WIDTH = GRID_SIZE * CELL_SIZE;
+  const CANVAS_HEIGHT = GRID_SIZE * CELL_SIZE;
+
+  // Tower themes dengan animasi dan efek visual
+  const TOWER_THEMES = {
+    rainbow: {
+      name: '🌈 Rainbow Towers',
+      colors: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'],
+      special: 'rainbow-beam'
     },
-    cannon: {
-      name: 'Cannon Tower',
+    neon: {
+      name: '⚡ Neon Towers',
+      colors: ['#00FFFF', '#FF00FF', '#FFFF00'],
+      special: 'laser-beam'
+    },
+    galaxy: {
+      name: '🌌 Galaxy Towers',
+      colors: ['#9D4EDD', '#C77DFF', '#E0AAFF'],
+      special: 'plasma-beam'
+    },
+    golden: {
+      name: '⭐ Golden Towers',
+      colors: ['#FFD700', '#FFA500', '#FFFF00'],
+      special: 'golden-beam'
+    }
+  };
+
+  // Tower types dengan animasi dan efek khusus
+  const TOWER_TYPES = {
+    basic: {
+      name: '🏹 Basic Tower',
+      cost: 50,
+      damage: 25,
+      range: 120,
+      fireRate: 800,
+      color: '#FF6B6B',
+      projectileColor: '#FF0000',
+      effect: 'normal'
+    },
+    rapid: {
+      name: '⚡ Rapid Tower',
+      cost: 75,
+      damage: 15,
+      range: 100,
+      fireRate: 300,
+      color: '#4ECDC4',
+      projectileColor: '#00FFFF',
+      effect: 'fast-shoot'
+    },
+    heavy: {
+      name: '💥 Heavy Tower',
       cost: 100,
-      damage: 50,
-      range: 2.5,
-      fireRate: 2000,
-      emoji: '💣',
-      color: 'from-red-400 to-red-600',
-      projectileEmoji: '💥'
+      damage: 60,
+      range: 140,
+      fireRate: 1500,
+      color: '#9D4EDD',
+      projectileColor: '#9400D3',
+      effect: 'slow-but-powerful'
+    },
+    rainbow: {
+      name: '🌈 Rainbow Tower',
+      cost: 150,
+      damage: 40,
+      range: 160,
+      fireRate: 500,
+      color: 'rainbow',
+      projectileColor: 'rainbow',
+      effect: 'rainbow-beam'
     },
     ice: {
-      name: 'Ice Tower',
-      cost: 75,
-      damage: 10,
-      range: 3.5,
-      fireRate: 1500,
-      emoji: '❄️',
-      color: 'from-blue-400 to-cyan-600',
-      projectileEmoji: '🧊',
-      slowEffect: 0.5
-    },
-    laser: {
-      name: 'Laser Tower',
-      cost: 150,
-      damage: 30,
-      range: 4,
-      fireRate: 500,
-      emoji: '⚡',
-      color: 'from-purple-400 to-pink-600',
-      projectileEmoji: '🔥'
+      name: '❄️ Ice Tower',
+      cost: 80,
+      damage: 20,
+      range: 110,
+      fireRate: 600,
+      color: '#00BFFF',
+      projectileColor: '#87CEEB',
+      effect: 'slow-enemies'
     }
   };
 
-  // Enemy types
-  const enemyTypes = {
+  // Enemy types dengan animasi dan efek
+  const ENEMY_TYPES = {
     basic: {
-      name: 'Tugas Matematika',
+      name: '👾 Basic Enemy',
       health: 100,
-      speed: 1,
+      speed: 2,
       reward: 10,
-      emoji: '📐',
-      color: 'bg-red-500'
+      color: '#FF6B6B',
+      size: 20,
+      effect: 'none'
     },
     fast: {
-      name: 'PR Bahasa',
+      name: '🏃 Fast Enemy',
       health: 60,
-      speed: 2,
+      speed: 4,
       reward: 15,
-      emoji: '📝',
-      color: 'bg-yellow-500'
+      color: '#4ECDC4',
+      size: 18,
+      effect: 'speed-boost'
     },
     tank: {
-      name: 'Laporan IPA',
-      health: 200,
-      speed: 0.5,
-      reward: 25,
-      emoji: '🧪',
-      color: 'bg-blue-500'
+      name: '🛡️ Tank Enemy',
+      health: 300,
+      speed: 1,
+      reward: 30,
+      color: '#9D4EDD',
+      size: 30,
+      effect: 'high-health'
+    },
+    flying: {
+      name: '🦅 Flying Enemy',
+      health: 80,
+      speed: 3,
+      reward: 20,
+      color: '#FFD700',
+      size: 22,
+      effect: 'air-unit'
     },
     boss: {
-      name: 'Ujian Akhir',
-      health: 500,
-      speed: 0.3,
+      name: '👑 Boss Enemy',
+      health: 1000,
+      speed: 1.5,
       reward: 100,
-      emoji: '📚',
-      color: 'bg-purple-500'
+      color: '#FF0000',
+      size: 40,
+      effect: 'boss-unit'
     }
   };
 
-  // Game grid
-  const gridSize = 12;
-  const cellSize = 40;
-  const path = [
-    {x: 0, y: 6}, {x: 1, y: 6}, {x: 2, y: 6}, {x: 3, y: 6}, {x: 4, y: 6},
-    {x: 4, y: 5}, {x: 4, y: 4}, {x: 4, y: 3}, {x: 5, y: 3}, {x: 6, y: 3},
-    {x: 7, y: 3}, {x: 7, y: 4}, {x: 7, y: 5}, {x: 7, y: 6}, {x: 7, y: 7},
-    {x: 7, y: 8}, {x: 8, y: 8}, {x: 9, y: 8}, {x: 10, y: 8}, {x: 11, y: 8}
-  ];
-
-  // Wave configurations
-  const waveConfigs = {
-    1: [{type: 'basic', count: 5, interval: 1000}],
-    2: [
-      {type: 'basic', count: 8, interval: 800},
-      {type: 'fast', count: 3, interval: 1200}
-    ],
-    3: [
-      {type: 'basic', count: 10, interval: 600},
-      {type: 'fast', count: 5, interval: 1000},
-      {type: 'tank', count: 2, interval: 2000}
-    ],
-    4: [
-      {type: 'fast', count: 8, interval: 500},
-      {type: 'tank', count: 4, interval: 1500},
-      {type: 'boss', count: 1, interval: 3000}
-    ],
-    5: [
-      {type: 'basic', count: 15, interval: 400},
-      {type: 'fast', count: 10, interval: 600},
-      {type: 'tank', count: 6, interval: 1200},
-      {type: 'boss', count: 2, interval: 2500}
-    ]
+  // Power-ups untuk tower defense
+  const POWER_UPS = {
+    boost: {
+      name: '⚡ Damage Boost',
+      duration: 10000,
+      effect: 'double-damage',
+      color: '#FFD700'
+    },
+    speed: {
+      name: '🚀 Speed Boost',
+      duration: 8000,
+      effect: 'double-fire-rate',
+      color: '#FF00FF'
+    },
+    range: {
+      name: '🎯 Range Boost',
+      duration: 12000,
+      effect: 'double-range',
+      color: '#00FFFF'
+    },
+    rainbow: {
+      name: '🌈 Rainbow Storm',
+      duration: 15000,
+      effect: 'rainbow-mode',
+      color: '#FF69B4'
+    }
   };
 
-  // Initialize game
-  const initializeGame = useCallback((selectedLevel = 1) => {
-    setLevel(selectedLevel);
-    setHealth(100);
-    setGold(200);
-    setWave(1);
-    setScore(0);
-    setTowers([]);
-    setEnemies([]);
-    setProjectiles([]);
-    setGameState('playing');
-    setShowVictory(false);
-    setGameTime(0);
+  // Path finding untuk enemy movement
+  const findPath = (start, end) => {
+    // Simple path: from start to end with some curves
+    const path = [];
+    const steps = 20;
+    
+    for (let i = 0; i <= steps; i++) {
+      const progress = i / steps;
+      const x = start.x + (end.x - start.x) * progress;
+      const y = start.y + (end.y - start.y) * progress + Math.sin(progress * Math.PI * 2) * 2;
+      
+      path.push({ x, y });
+    }
+    
+    return path;
+  };
+
+  // Initialize game dengan animasi dan efek visual
+  useEffect(() => {
+    initializeGrid();
+    initializeParticles();
+    
+    // Background music
+    audioRef.current = new Audio('/sounds/tower-defense-music.mp3');
+    audioRef.current.loop = true;
+    audioRef.current.volume = volume;
   }, []);
 
-  // Game loop
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    const gameLoop = setInterval(() => {
-      setGameTime(prev => prev + 50);
-      
-      // Move enemies
-      setEnemies(prev => prev.map(enemy => {
-        if (enemy.pathIndex < path.length - 1) {
-          const currentPos = path[enemy.pathIndex];
-          const nextPos = path[enemy.pathIndex + 1];
-          const dx = nextPos.x - currentPos.x;
-          const dy = nextPos.y - currentPos.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          return {
-            ...enemy,
-            x: enemy.x + (dx / distance) * enemy.speed * 0.05,
-            y: enemy.y + (dy / distance) * enemy.speed * 0.05,
-            pathProgress: enemy.pathProgress + (enemy.speed * 0.05) / distance
-          };
-        } else {
-          // Enemy reached the end
-          setHealth(h => Math.max(0, h - 10));
-          return null;
-        }
-      }).filter(Boolean));
-
-      // Move projectiles
-      setProjectiles(prev => prev.map(proj => ({
-        ...proj,
-        x: proj.x + proj.dx * 5,
-        y: proj.y + proj.dy * 5,
-        life: proj.life - 1
-      })).filter(proj => proj.life > 0));
-
-      // Tower shooting
-      setTowers(prev => prev.map(tower => {
-        const towerType = towerTypes[tower.type];
-        if (gameTime - tower.lastShot > towerType.fireRate) {
-          const enemiesInRange = enemies.filter(enemy => {
-            const dx = enemy.x - tower.x;
-            const dy = enemy.y - tower.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            return distance <= towerType.range;
-          });
-
-          if (enemiesInRange.length > 0) {
-            const target = enemiesInRange[0];
-            const dx = target.x - tower.x;
-            const dy = target.y - tower.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            setProjectiles(projectiles => [...projectiles, {
-              id: Date.now() + Math.random(),
-              x: tower.x,
-              y: tower.y,
-              dx: dx / distance,
-              dy: dy / distance,
-              damage: towerType.damage,
-              emoji: towerType.projectileEmoji,
-              life: 100,
-              targetId: target.id
-            }]);
-
-            return { ...tower, lastShot: gameTime };
-          }
-        }
-        return tower;
-      }));
-
-      // Check projectile hits
-      setProjectiles(prev => {
-        const remainingProjectiles = [];
-        
-        prev.forEach(proj => {
-          let hit = false;
-          setEnemies(enemies => enemies.map(enemy => {
-            if (enemy.id === proj.targetId) {
-              const dx = enemy.x - proj.x;
-              const dy = enemy.y - proj.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-              
-              if (distance < 0.5) {
-                hit = true;
-                const newHealth = enemy.health - proj.damage;
-                if (newHealth <= 0) {
-                  setGold(g => g + enemy.reward);
-                  setScore(s => s + enemy.reward * 10);
-                  return null;
-                }
-                return { ...enemy, health: newHealth };
-              }
-            }
-            return enemy;
-          }).filter(Boolean));
-          
-          if (!hit) {
-            remainingProjectiles.push(proj);
-          }
-        });
-        
-        return remainingProjectiles;
-      });
-    }, 50);
-
-    return () => clearInterval(gameLoop);
-  }, [gameState, gameTime, enemies, projectiles, towers]);
-
-  // Spawn enemies
-  useEffect(() => {
-    if (gameState !== 'playing' || !waveConfigs[wave]) return;
-
-    const spawnEnemies = async () => {
-      const waveConfig = waveConfigs[wave];
-      
-      for (const config of waveConfig) {
-        for (let i = 0; i < config.count; i++) {
-          await new Promise(resolve => setTimeout(resolve, config.interval));
-          
-          const enemyType = enemyTypes[config.type];
-          setEnemies(prev => [...prev, {
-            id: Date.now() + Math.random(),
-            type: config.type,
-            x: path[0].x,
-            y: path[0].y,
-            health: enemyType.health,
-            maxHealth: enemyType.health,
-            speed: enemyType.speed,
-            pathIndex: 0,
-            pathProgress: 0,
-            ...enemyType
-          }]);
-        }
+  // Initialize grid dengan path
+  const initializeGrid = () => {
+    // Create a simple path from left to right with some curves
+    const path = findPath(
+      { x: 0, y: Math.floor(GRID_SIZE / 2) },
+      { x: GRID_SIZE - 1, y: Math.floor(GRID_SIZE / 2) }
+    );
+    
+    // Mark path cells
+    const grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+    path.forEach(point => {
+      const gridX = Math.floor(point.x);
+      const gridY = Math.floor(point.y);
+      if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
+        grid[gridY][gridX] = 1; // Path
       }
-    };
-
-    spawnEnemies();
-  }, [gameState, wave]);
-
-  // Check wave completion
-  useEffect(() => {
-    if (gameState === 'playing' && enemies.length === 0 && wave > 1) {
-      // Check if all enemies from current wave are spawned
-      const waveConfig = waveConfigs[wave];
-      const totalEnemies = waveConfig?.reduce((sum, config) => sum + config.count, 0) || 0;
-      
-      setTimeout(() => {
-        if (enemies.length === 0) {
-          if (wave < Object.keys(waveConfigs).length) {
-            setWave(prev => prev + 1);
-            setGold(prev => prev + 50); // Wave completion bonus
-          } else {
-            setGameState('completed');
-            setShowVictory(true);
-            
-            // Save to leaderboard
-            if (userData?.uid) {
-              userService.addScore(userData.uid, 'towerdefense', score);
-            }
-          }
-        }
-      }, 2000);
-    }
-  }, [enemies, wave, gameState, score, userData]);
-
-  // Check game over
-  useEffect(() => {
-    if (health <= 0 && gameState === 'playing') {
-      setGameState('failed');
-    }
-  }, [health, gameState]);
-
-  // Place tower
-  const placeTower = (gridX, gridY) => {
-    const towerType = towerTypes[selectedTowerType];
+    });
     
-    // Check if position is valid
-    const isPath = path.some(p => p.x === gridX && p.y === gridY);
-    const isOccupied = towers.some(t => t.gridX === gridX && t.gridY === gridY);
-    
-    if (!isPath && !isOccupied && gold >= towerType.cost) {
-      setTowers(prev => [...prev, {
-        id: Date.now(),
-        type: selectedTowerType,
-        x: gridX + 0.5,
-        y: gridY + 0.5,
-        gridX,
-        gridY,
-        lastShot: 0,
-        ...towerType
-      }]);
-      setGold(prev => prev - towerType.cost);
-    }
+    return grid;
   };
 
-  // Upgrade tower
-  const upgradeTower = (towerId) => {
-    setTowers(prev => prev.map(tower => {
-      if (tower.id === towerId && gold >= tower.cost * 0.5) {
-        setGold(g => g - tower.cost * 0.5);
-        return {
-          ...tower,
-          damage: tower.damage * 1.5,
-          range: tower.range * 1.1,
-          level: (tower.level || 1) + 1
-        };
-      }
-      return tower;
+  // Particle system untuk efek visual
+  const createParticles = (x, y, color, count = 10) => {
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        id: Date.now() + i,
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8,
+        color,
+        size: Math.random() * 6 + 2,
+        life: 30,
+        type: 'effect'
+      });
+    }
+    
+    setGameState(prev => ({
+      ...prev,
+      particles: [...prev.particles, ...particles]
     }));
   };
 
-  // Sell tower
-  const sellTower = (towerId) => {
-    const tower = towers.find(t => t.id === towerId);
-    if (tower) {
-      setGold(prev => prev + Math.floor(tower.cost * 0.7));
-      setTowers(prev => prev.filter(t => t.id !== towerId));
-    }
-  };
+  // Tower placement dengan animasi dan efek visual
+  const placeTower = useCallback((gridX, gridY) => {
+    if (gameState.status !== 'playing') return;
+    if (gameState.money < TOWER_TYPES[selectedTower].cost) return;
 
-  // Reset game
-  const resetGame = () => {
-    setGameState('menu');
-    setShowVictory(false);
-  };
+    // Check if position is valid (not on path)
+    const grid = initializeGrid();
+    if (grid[gridY][gridX] === 1) return; // Path cell
 
-  // Render menu
-  if (gameState === 'menu') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <motion.h1 
-              className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              🏰 Tower Defense
-            </motion.h1>
-            <p className="text-xl text-gray-300">Defend kelas XE-4 dari serangan tugas dan PR!</p>
-          </div>
-
-          {/* Game Stats */}
-          {userData && (
-            <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8">
-              <Typography variant="h6" className="mb-4 text-center">📊 Statistik Kamu</Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={4}>
-                  <div className="text-center">
-                    <Typography variant="h4" className="text-purple-400">{userData.gameStats?.towerdefense?.gamesPlayed || 0}</Typography>
-                    <Typography variant="body2" className="text-gray-400">Games Played</Typography>
-                  </div>
-                </Grid>
-                <Grid item xs={4}>
-                  <div className="text-center">
-                    <Typography variant="h4" className="text-blue-400">{userData.gameStats?.towerdefense?.highestLevel || 0}</Typography>
-                    <Typography variant="body2" className="text-gray-400">Highest Level</Typography>
-                  </div>
-                </Grid>
-                <Grid item xs={4}>
-                  <div className="text-center">
-                    <Typography variant="h4" className="text-green-400">{userData.gameStats?.towerdefense?.highScore || 0}</Typography>
-                    <Typography variant="body2" className="text-gray-400">High Score</Typography>
-                  </div>
-                </Grid>
-              </Grid>
-            </div>
-          )}
-
-          {/* Level Selection */}
-          <div className="grid md:grid-cols-5 gap-4 mb-8">
-            {[1, 2, 3, 4, 5].map((lvl) => (
-              <motion.div
-                key={lvl}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Paper 
-                  className="bg-black/30 backdrop-blur-lg p-6 cursor-pointer hover:bg-black/50 transition-all duration-300 h-full text-center"
-                  onClick={() => initializeGame(lvl)}
-                >
-                  <div className="text-4xl mb-4">{lvl <= 3 ? '📚' : lvl <= 4 ? '📝' : '🧪'}</div>
-                  <Typography variant="h6" className="text-white font-bold mb-2">
-                    Level {lvl}
-                  </Typography>
-                  <Typography variant="body2" className="text-gray-300">
-                    {lvl === 1 && 'Belajar dasar'}
-                    {lvl === 2 && 'PR bertubi-tubi'}
-                    {lvl === 3 && 'Ujian tengah semester'}
-                    {lvl === 4 && 'Ujian akhir'}
-                    {lvl === 5 && 'Tugas kelompok!'}
-                  </Typography>
-                  <Chip 
-                    label={`${lvl * 2} Waves`} 
-                    className="mt-4"
-                    color={lvl <= 2 ? 'success' : lvl <= 4 ? 'warning' : 'error'}
-                  />
-                </Paper>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Tower Types Preview */}
-          <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 mb-8">
-            <Typography variant="h6" className="text-white text-center mb-4">🗼 Jenis Tower</Typography>
-            <Grid container spacing={3}>
-              {Object.entries(towerTypes).map(([key, tower]) => (
-                <Grid item xs={6} md={3} key={key}>
-                  <Paper className="bg-black/50 p-4 text-center">
-                    <div className="text-3xl mb-2">{tower.emoji}</div>
-                    <Typography variant="body1" className="text-white font-semibold">
-                      {tower.name}
-                    </Typography>
-                    <Typography variant="body2" className="text-gray-400">
-                      Cost: {tower.cost} gold
-                    </Typography>
-                    <Typography variant="caption" className="text-gray-500">
-                      Damage: {tower.damage} | Range: {tower.range}
-                    </Typography>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-          </div>
-
-          {/* Back Button */}
-          <div className="text-center">
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/game')}
-              className="text-white border-white hover:bg-white hover:text-purple-900"
-            >
-              ← Kembali ke Games
-            </Button>
-          </div>
-        </div>
-      </div>
+    // Check if tower already exists
+    const existingTower = gameState.towers.find(tower => 
+      tower.gridX === gridX && tower.gridY === gridY
     );
-  }
+    if (existingTower) return;
 
-  // Render game
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Game Header */}
-        <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-4 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outlined"
-                onClick={resetGame}
-                className="text-white border-white hover:bg-white hover:text-purple-900"
-                startIcon={<RefreshIcon />}
-              >
-                Menu
-              </Button>
-              <Typography variant="h6" className="text-white">
-                Level {level} - Wave {wave}
-              </Typography>
-            </div>
+    const newTower = {
+      id: Date.now() + Math.random(),
+      x: gridX * CELL_SIZE + CELL_SIZE / 2,
+      y: gridY * CELL_SIZE + CELL_SIZE / 2,
+      gridX,
+      gridY,
+      type: selectedTower,
+      ...TOWER_TYPES[selectedTower],
+      lastFire: 0,
+      target: null,
+      level: 1
+    };
+
+    setGameState(prev => ({
+      ...prev,
+      towers: [...prev.towers, newTower],
+      money: prev.money - TOWER_TYPES[selectedTower].cost
+    }));
+
+    // Create placement particles
+    createParticles(newTower.x, newTower.y, TOWER_TYPES[selectedTower].color, 15);
+    playSound('placeTower');
+  }, [gameState.status, gameState.money, gameState.towers, selectedTower]);
+
+  // Enemy spawning dengan sistem level yang balanced
+  const spawnEnemy = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+
+    const types = Object.keys(ENEMY_TYPES);
+    const weights = [0.4, 0.25, 0.2, 0.1, 0.05]; // Normal distribution
+    const randomType = weightedRandom(types, weights);
+    
+    const enemyType = ENEMY_TYPES[randomType];
+    const path = findPath(
+      { x: -1, y: Math.floor(GRID_SIZE / 2) },
+      { x: GRID_SIZE, y: Math.floor(GRID_SIZE / 2) }
+    );
+    
+    const newEnemy = {
+      id: Date.now() + Math.random(),
+      x: -CELL_SIZE,
+      y: path[0].y * CELL_SIZE + CELL_SIZE / 2,
+      pathIndex: 0,
+      path: path,
+      health: enemyType.health + (gameState.level * 10),
+      maxHealth: enemyType.health + (gameState.level * 10),
+      speed: enemyType.speed + (gameState.level * 0.2),
+      ...enemyType,
+      slowed: false,
+      slowedTimer: 0
+    };
+
+    setGameState(prev => ({
+      ...prev,
+      enemies: [...prev.enemies, newEnemy]
+    }));
+
+    // Schedule next spawn
+    const spawnDelay = Math.max(500, 1000 - (gameState.level * 50));
+    setTimeout(spawnEnemy, spawnDelay + Math.random() * 500);
+  }, [gameState.status, gameState.level]);
+
+  // Weighted random selection
+  const weightedRandom = (items, weights) => {
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (let i = 0; i < items.length; i++) {
+      random -= weights[i];
+      if (random <= 0) return items[i];
+    }
+    return items[items.length - 1];
+  };
+
+  // Tower shooting system dengan animasi dan efek visual
+  const updateTowers = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+
+    const currentTime = Date.now();
+
+    gameState.towers.forEach(tower => {
+      // Find target
+      tower.target = null;
+      let closestDistance = tower.range;
+
+      gameState.enemies.forEach(enemy => {
+        const distance = Math.sqrt(
+          Math.pow(enemy.x - tower.x, 2) + 
+          Math.pow(enemy.y - tower.y, 2)
+        );
+
+        if (distance <= tower.range && distance < closestDistance) {
+          closestDistance = distance;
+          tower.target = enemy;
+        }
+      });
+
+      // Shoot if has target and cooldown is ready
+      if (tower.target && currentTime - tower.lastFire >= tower.fireRate) {
+        const projectile = {
+          id: Date.now() + Math.random(),
+          x: tower.x,
+          y: tower.y,
+          targetX: tower.target.x,
+          targetY: tower.target.y,
+          target: tower.target,
+          speed: 10,
+          damage: tower.damage,
+          color: tower.projectileColor,
+          type: tower.type
+        };
+
+        setGameState(prev => ({
+          ...prev,
+          projectiles: [...prev.projectiles, projectile]
+        }));
+
+        tower.lastFire = currentTime;
+        
+        // Create shooting particles
+        createParticles(tower.x, tower.y, tower.color, 8);
+        playSound('shoot');
+      }
+    });
+  }, [gameState.status, gameState.towers, gameState.enemies]);
+
+  // Projectile movement dan collision detection
+  const updateProjectiles = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      projectiles: prev.projectiles.filter(projectile => {
+        const dx = projectile.targetX - projectile.x;
+        const dy = projectile.targetY - projectile.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 10) {
+          // Hit target
+          if (projectile.target && projectile.target.health > 0) {
+            projectile.target.health -= projectile.damage;
             
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <WarningIcon className="text-red-400" />
-                <Typography className="text-white">
-                  {health} HP
-                </Typography>
-              </div>
+            // Create hit particles
+            createParticles(projectile.target.x, projectile.target.y, projectile.color, 10);
+            
+            // Apply special effects
+            if (projectile.type === 'ice') {
+              projectile.target.slowed = true;
+              projectile.target.slowedTimer = 3000;
+            }
+            
+            if (projectile.target.health <= 0) {
+              // Enemy defeated
+              setGameState(current => ({
+                ...current,
+                score: current.score + projectile.target.reward,
+                money: current.money + Math.floor(projectile.target.reward / 2),
+                combo: current.combo + 1
+              }));
               
-              <div className="flex items-center gap-2">
-                <LocalFireDepartmentIcon className="text-yellow-400" />
-                <Typography className="text-white">
-                  {gold} Gold
-                </Typography>
+              playSound('explosion');
+            }
+          }
+          return false;
+        }
+
+        // Move projectile
+        projectile.x += (dx / distance) * projectile.speed;
+        projectile.y += (dy / distance) * projectile.speed;
+        
+        return true;
+      })
+    }));
+  }, []);
+
+  // Enemy movement dengan pathfinding
+  const updateEnemies = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      enemies: prev.enemies.filter(enemy => {
+        if (enemy.health <= 0) return false;
+
+        // Move along path
+        if (enemy.pathIndex < enemy.path.length - 1) {
+          const target = enemy.path[enemy.pathIndex + 1];
+          const targetX = target.x * CELL_SIZE + CELL_SIZE / 2;
+          const targetY = target.y * CELL_SIZE + CELL_SIZE / 2;
+
+          const dx = targetX - enemy.x;
+          const dy = targetY - enemy.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 5) {
+            enemy.pathIndex++;
+          } else {
+            const speed = enemy.slowed ? enemy.speed * 0.5 : enemy.speed;
+            enemy.x += (dx / distance) * speed;
+            enemy.y += (dy / distance) * speed;
+          }
+        } else {
+          // Enemy reached the end
+          setGameState(current => ({ 
+            ...current, 
+            lives: current.lives - 1 
+          }));
+          return false;
+        }
+
+        // Update slow effect
+        if (enemy.slowedTimer > 0) {
+          enemy.slowedTimer -= 16; // Assuming 60fps
+          if (enemy.slowedTimer <= 0) {
+            enemy.slowed = false;
+          }
+        }
+
+        return true;
+      })
+    }));
+  }, []);
+
+  // Wave system
+  const startWave = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+
+    // Increase wave number
+    setGameState(prev => ({ ...prev, wave: prev.wave + 1 }));
+    
+    // Spawn enemies for this wave
+    const enemyCount = 5 + gameState.wave * 2;
+    for (let i = 0; i < enemyCount; i++) {
+      setTimeout(spawnEnemy, i * 500);
+    }
+    
+    playSound('waveStart');
+  }, [gameState.status, gameState.wave, spawnEnemy]);
+
+  // Game loop utama
+  const gameLoop = useCallback(() => {
+    if (gameState.status !== 'playing') return;
+
+    updateTowers();
+    updateProjectiles();
+    updateEnemies();
+
+    // Update particles
+    setGameState(prev => ({
+      ...prev,
+      particles: prev.particles.map(particle => ({
+        ...particle,
+        x: particle.x + particle.vx,
+        y: particle.y + particle.vy,
+        vx: particle.vx * 0.98,
+        vy: particle.vy * 0.98,
+        life: particle.life - 1
+      })).filter(particle => particle.life > 0)
+    }));
+
+    // Check wave completion
+    if (gameState.enemies.length === 0 && gameState.status === 'playing') {
+      // Wave complete - start next wave after delay
+      setTimeout(startWave, 3000);
+    }
+
+    // Check game over
+    if (gameState.lives <= 0) {
+      setGameState(prev => ({ ...prev, status: 'gameOver' }));
+      playSound('gameOver');
+    }
+
+    animationRef.current = requestAnimationFrame(gameLoop);
+  }, [gameState.status, gameState.enemies.length, gameState.lives, updateTowers, updateProjectiles, updateEnemies, startWave]);
+
+  // Sound system
+  const playSound = (soundType) => {
+    const sounds = {
+      placeTower: '/sounds/place-tower.mp3',
+      shoot: '/sounds/tower-shoot.mp3',
+      explosion: '/sounds/enemy-explode.mp3',
+      waveStart: '/sounds/wave-start.mp3',
+      gameOver: '/sounds/game-over.mp3'
+    };
+
+    const audio = new Audio(sounds[soundType]);
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  };
+
+  // Game control functions
+  const startGame = () => {
+    setGameState(prev => ({ ...prev, status: 'playing' }));
+    audioRef.current?.play();
+    gameLoop();
+    startWave();
+  };
+
+  const pauseGame = () => {
+    setGameState(prev => ({ ...prev, status: 'paused' }));
+    audioRef.current?.pause();
+    cancelAnimationFrame(animationRef.current);
+  };
+
+  const resumeGame = () => {
+    setGameState(prev => ({ ...prev, status: 'playing' }));
+    audioRef.current?.play();
+    gameLoop();
+  };
+
+  const restartGame = () => {
+    cancelAnimationFrame(animationRef.current);
+    audioRef.current?.pause();
+    audioRef.current.currentTime = 0;
+    
+    setGameState({
+      status: 'menu',
+      score: 0,
+      level: 1,
+      lives: 20,
+      money: 100,
+      wave: 1,
+      enemies: [],
+      towers: [],
+      projectiles: [],
+      particles: [],
+      powerUps: [],
+      rainbowMode: false,
+      rainbowTimer: 0
+    });
+  };
+
+  // Canvas click handler
+  const handleCanvasClick = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const gridX = Math.floor(x / CELL_SIZE);
+    const gridY = Math.floor(y / CELL_SIZE);
+    
+    placeTower(gridX, gridY);
+  };
+
+  // Main UI dengan animasi lucu dan tema rainbow
+  return (
+    <div className="tower-defense-container">
+      {/* Animated Background */}
+      <div className="animated-bg">
+        <div className="grid-pattern"></div>
+        {Array.from({ length: 20 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="floating-tower"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              fontSize: `${Math.random() * 20 + 15}px`
+            }}
+            animate={{
+              rotate: [0, 360],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{
+              duration: Math.random() * 10 + 5,
+              repeat: Infinity,
+              ease: "linear"
+            }}
+          >
+            {['🏰', '🗼', '🏗️', '🏘️'][i % 4]}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Game Header dengan animasi */}
+      <motion.div 
+        className="game-header"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      >
+        <div className="header-left">
+          <motion.h1 
+            className="game-title"
+            animate={{ 
+              color: TOWER_THEMES[selectedTower].colors
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            🏰 Rainbow Tower Defense
+          </motion.h1>
+          
+          <div className="tower-selection">
+            <span>Pilih Tower: </span>
+            <select 
+              value={selectedTower} 
+              onChange={(e) => setSelectedTower(e.target.value)}
+              className="tower-select"
+            >
+              {Object.entries(TOWER_TYPES).map(([key, tower]) => (
+                <option key={key} value={key}>{tower.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="header-right">
+          <div className="resources-display">
+            <motion.div 
+              key={gameState.money}
+              initial={{ scale: 1.5, rotate: 360 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="money-display"
+              style={{ color: TOWER_THEMES[selectedTower].colors[0] }}
+            >
+              💰 {gameState.money}
+            </motion.div>
+            
+            <div className="wave-display">
+              <span>Gelombang {gameState.wave}</span>
+              <div className="wave-bar">
+                <motion.div 
+                  className="wave-progress"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (gameState.enemies.length / (5 + gameState.wave * 2)) * 100)}%` }}
+                  transition={{ duration: 0.5 }}
+                  style={{ 
+                    background: `linear-gradient(90deg, ${TOWER_THEMES[selectedTower].colors.join(', ')})`
+                  }}
+                />
               </div>
-              
-              <div className="flex items-center gap-2">
-                <EmojiEventsIcon className="text-purple-400" />
-                <Typography className="text-white font-bold">
-                  {score}
-                </Typography>
-              </div>
-              
-              <Chip 
-                label={`${enemies.length} Enemies`} 
-                color="error"
-              />
+            </div>
+
+            <div className="lives-display">
+              {[...Array(Math.min(5, gameState.lives))].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: i * 0.1, type: "spring" }}
+                  className="life-icon"
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    rotate: [0, 10, -10, 0]
+                  }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                >
+                  ❤️
+                </motion.div>
+              ))}
+              {gameState.lives > 5 && (
+                <span className="extra-lives">+{gameState.lives - 5}</span>
+              )}
             </div>
           </div>
         </div>
+      </motion.div>
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Game Area */}
-          <div className="lg:col-span-3">
-            <Paper className="bg-black/30 backdrop-blur-lg rounded-2xl p-4">
-              <div 
-                ref={gameAreaRef}
-                className="relative bg-gray-900 rounded-lg overflow-hidden"
-                style={{ 
-                  width: gridSize * cellSize,
-                  height: gridSize * cellSize,
-                  backgroundImage: `
-                    linear-gradient(45deg, #1f2937 25%, transparent 25%),
-                    linear-gradient(-45deg, #1f2937 25%, transparent 25%),
-                    linear-gradient(45deg, transparent 75%, #1f2937 75%),
-                    linear-gradient(-45deg, transparent 75%, #1f2937 75%)
-                  `,
-                  backgroundSize: '20px 20px',
-                  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+      {/* Tower Shop */}
+      <motion.div 
+        className="tower-shop"
+        initial={{ x: -300, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ delay: 0.3, type: "spring" }}
+      >
+        <h3>🏪 Tower Shop</h3>
+        <div className="tower-list">
+          {Object.entries(TOWER_TYPES).map(([key, tower]) => (
+            <motion.button
+              key={key}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setSelectedTower(key)}
+              className={`tower-shop-item ${selectedTower === key ? 'selected' : ''}`}
+              disabled={gameState.money < tower.cost}
+            >
+              <div className="tower-preview" style={{ backgroundColor: tower.color }}></div>
+              <div className="tower-info">
+                <div className="tower-name">{tower.name}</div>
+                <div className="tower-cost">💰 {tower.cost}</div>
+                <div className="tower-stats">
+                  <span>Damage: {tower.damage}</span>
+                  <span>Range: {tower.range}</span>
+                </div>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Main Game Area */}
+      <div className="game-area">
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          onClick={handleCanvasClick}
+          className="game-canvas"
+        />
+
+        {/* Grid overlay */}
+        <div className="grid-overlay">
+          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
+            const x = index % GRID_SIZE;
+            const y = Math.floor(index / GRID_SIZE);
+            const grid = initializeGrid();
+            const isPath = grid[y][x] === 1;
+            const hasTower = gameState.towers.some(tower => 
+              tower.gridX === x && tower.gridY === y
+            );
+
+            return (
+              <div
+                key={index}
+                className={`grid-cell ${isPath ? 'path' : ''} ${hasTower ? 'occupied' : ''}`}
+                style={{
+                  left: x * CELL_SIZE,
+                  top: y * CELL_SIZE,
+                  width: CELL_SIZE,
+                  height: CELL_SIZE
                 }}
-              >
-                {/* Path */}
-                {path.map((pos, index) => (
-                  <div
-                    key={index}
-                    className="absolute bg-gray-600 opacity-30"
-                    style={{
-                      left: pos.x * cellSize,
-                      top: pos.y * cellSize,
-                      width: cellSize,
-                      height: cellSize
-                    }}
-                  />
-                ))}
+                onClick={() => placeTower(x, y)}
+              />
+            );
+          })}
+        </div>
 
-                {/* Towers */}
-                {towers.map(tower => (
-                  <motion.div
-                    key={tower.id}
-                    className={`absolute rounded-full bg-gradient-to-br ${tower.color} flex items-center justify-center cursor-pointer`}
-                    style={{
-                      left: tower.gridX * cellSize + 5,
-                      top: tower.gridY * cellSize + 5,
-                      width: cellSize - 10,
-                      height: cellSize - 10
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    onClick={() => upgradeTower(tower.id)}
-                    title={`${tower.name} (Level ${tower.level || 1}) - Click to upgrade`}
-                  >
-                    <span className="text-lg">{tower.emoji}</span>
-                    {(tower.level || 1) > 1 && (
-                      <span className="absolute -top-1 -right-1 text-xs bg-yellow-500 text-black rounded-full w-4 h-4 flex items-center justify-center">
-                        {tower.level || 1}
-                      </span>
-                    )}
-                  </motion.div>
-                ))}
-
-                {/* Enemies */}
-                {enemies.map(enemy => (
-                  <motion.div
-                    key={enemy.id}
-                    className={`absolute rounded-full ${enemy.color} flex items-center justify-center`}
-                    style={{
-                      left: enemy.x * cellSize + 10,
-                      top: enemy.y * cellSize + 10,
-                      width: cellSize - 20,
-                      height: cellSize - 20
-                    }}
-                  >
-                    <span className="text-sm">{enemy.emoji}</span>
-                    {/* Health bar */}
-                    <div className="absolute -top-2 left-0 w-full h-1 bg-gray-700 rounded">
-                      <div 
-                        className="h-full bg-green-500 rounded"
-                        style={{ width: `${(enemy.health / enemy.maxHealth) * 100}%` }}
-                      />
-                    </div>
-                  </motion.div>
-                ))}
-
-                {/* Projectiles */}
-                {projectiles.map(proj => (
-                  <motion.div
-                    key={proj.id}
-                    className="absolute text-xs"
-                    style={{
-                      left: proj.x * cellSize + cellSize/2 - 6,
-                      top: proj.y * cellSize + cellSize/2 - 6
-                    }}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                  >
-                    {proj.emoji}
-                  </motion.div>
-                ))}
-
-                {/* Grid overlay for tower placement */}
-                {Array.from({ length: gridSize }).map((_, y) => 
-                  Array.from({ length: gridSize }).map((_, x) => {
-                    const isPathCell = path.some(p => p.x === x && p.y === y);
-                    const hasTower = towers.some(t => t.gridX === x && t.gridY === y);
-                    const canPlace = !isPathCell && !hasTower && gold >= towerTypes[selectedTowerType].cost;
-                    
-                    return (
-                      <div
-                        key={`${x}-${y}`}
-                        className={`absolute border border-gray-700/30 ${canPlace ? 'hover:bg-white/10 cursor-pointer' : ''}`}
-                        style={{
-                          left: x * cellSize,
-                          top: y * cellSize,
-                          width: cellSize,
-                          height: cellSize
-                        }}
-                        onClick={() => canPlace && placeTower(x, y)}
-                      />
-                    );
-                  })
-                )}
-              </div>
-            </Paper>
+        {/* Player Stats */}
+        <div className="player-stats">
+          <div className="score-display">
+            <motion.span 
+              key={gameState.score}
+              initial={{ scale: 1.5 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring" }}
+              className="score-number"
+            >
+              ⭐ {gameState.score.toLocaleString()}
+            </motion.span>
           </div>
+        </div>
 
-          {/* Control Panel */}
-          <div className="lg:col-span-1">
-            <Paper className="bg-black/30 backdrop-blur-lg rounded-2xl p-4">
-              <Typography variant="h6" className="text-white mb-4 text-center">
-                🗼 Tower Shop
-              </Typography>
-              
-              <div className="space-y-3">
-                {Object.entries(towerTypes).map(([key, tower]) => (
-                  <motion.div
-                    key={key}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Paper
-                      className={`p-3 cursor-pointer transition-all duration-300 ${
-                        selectedTowerType === key 
-                          ? 'bg-purple-600/50 border-2 border-purple-400' 
-                          : 'bg-black/30 hover:bg-black/50'
-                      }`}
-                      onClick={() => setSelectedTowerType(key)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{tower.emoji}</span>
-                        <div className="flex-1">
-                          <Typography variant="body2" className="text-white font-semibold">
-                            {tower.name}
-                          </Typography>
-                          <Typography variant="caption" className="text-gray-400">
-                            Cost: {tower.cost} gold
-                          </Typography>
-                        </div>
-                      </div>
-                    </Paper>
-                  </motion.div>
-                ))}
-              </div>
+        {/* Power-ups Display */}
+        <div className="power-ups-display">
+          {gameState.powerUps.map((powerUp, i) => (
+            <motion.div
+              key={i}
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              className="power-up-icon"
+              style={{ 
+                backgroundColor: powerUp.color,
+                boxShadow: `0 0 20px ${powerUp.color}`
+              }}
+            >
+              {powerUp.name.split(' ')[0]}
+            </motion.div>
+          ))}
+        </div>
 
-              {/* Tower Info */}
-              <div className="mt-6 p-3 bg-black/30 rounded-lg">
-                <Typography variant="body2" className="text-white mb-2">
-                  🎯 Selected: {towerTypes[selectedTowerType].name}
-                </Typography>
-                <Typography variant="caption" className="text-gray-400 block">
-                  Damage: {towerTypes[selectedTowerType].damage}
-                </Typography>
-                <Typography variant="caption" className="text-gray-400 block">
-                  Range: {towerTypes[selectedTowerType].range}
-                </Typography>
-                <Typography variant="caption" className="text-gray-400 block">
-                  Fire Rate: {towerTypes[selectedTowerType].fireRate}ms
-                </Typography>
-              </div>
-
-              {/* Instructions */}
-              <div className="mt-6 p-3 bg-black/30 rounded-lg">
-                <Typography variant="body2" className="text-white mb-2">
-                  🎮 Controls
-                </Typography>
-                <Typography variant="caption" className="text-gray-400 block">
-                  • Click empty cells to place towers
-                </Typography>
-                <Typography variant="caption" className="text-gray-400 block">
-                  • Click towers to upgrade
-                </Typography>
-                <Typography variant="caption" className="text-gray-400 block">
-                  • Defend against enemy waves
-                </Typography>
-              </div>
-            </Paper>
+        {/* Wave Progress */}
+        <div className="wave-progress">
+          <div className="wave-info">
+            <span>Wave {gameState.wave}</span>
+            <span>{gameState.enemies.length} enemies remaining</span>
+          </div>
+          <div className="wave-bar">
+            <motion.div 
+              className="wave-progress-bar"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.max(0, 100 - (gameState.enemies.length / (5 + gameState.wave * 2)) * 100)}%` }}
+              transition={{ duration: 0.3 }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Victory Dialog */}
-      <Dialog open={showVictory} onClose={() => setShowVictory(false)} maxWidth="sm" fullWidth>
-        <div className="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-          <DialogTitle className="text-white text-center">
-            <div className="text-6xl mb-4">🎉</div>
-            <Typography variant="h4" className="font-bold">
-              Kelas XE-4 Terselamatkan!
-            </Typography>
-          </DialogTitle>
-          <DialogContent className="text-white">
-            <div className="text-center space-y-4">
-              <Typography variant="h6">
-                Kamu berhasil menahan serangan tugas dan PR!
-              </Typography>
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                <div className="bg-black/30 rounded-lg p-4">
-                  <Typography variant="h5" className="text-purple-400">{score}</Typography>
-                  <Typography variant="body2" className="text-gray-400">Total Score</Typography>
-                </div>
-                <div className="bg-black/30 rounded-lg p-4">
-                  <Typography variant="h5" className="text-blue-400">{level}</Typography>
-                  <Typography variant="body2" className="text-gray-400">Level</Typography>
-                </div>
-                <div className="bg-black/30 rounded-lg p-4">
-                  <Typography variant="h5" className="text-green-400">{wave}</Typography>
-                  <Typography variant="body2" className="text-gray-400">Waves</Typography>
-                </div>
-                <div className="bg-black/30 rounded-lg p-4">
-                  <Typography variant="h5" className="text-yellow-400">
-                    {Math.floor(gameTime / 1000)}s
-                  </Typography>
-                  <Typography variant="body2" className="text-gray-400">Time</Typography>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-          <DialogActions className="justify-center pb-6">
-            <Button 
-              onClick={resetGame}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-              startIcon={<RefreshIcon />}
+      {/* Control Buttons dengan animasi lucu */}
+      <motion.div 
+        className="control-panel"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.5, type: "spring" }}
+      >
+        {gameState.status === 'menu' && (
+          <div className="menu-screen">
+            <motion.div
+              animate={{ 
+                rotate: [0, -10, 10, -10, 0],
+                scale: [1, 1.1, 1]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="menu-castle"
             >
-              Main Lagi
-            </Button>
-            <Button 
-              onClick={() => navigate('/game')}
-              className="text-white border-white hover:bg-white hover:text-purple-900"
+              🏰
+            </motion.div>
+            
+            <h2>Selamat Datang di Rainbow Tower Defense!</h2>
+            <p>Bangun tower, pertahankan basis, dan kumpulkan rainbow! 🌈</p>
+            
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={startGame}
+              className="start-button"
+              style={{ 
+                background: `linear-gradient(45deg, ${TOWER_THEMES[selectedTower].colors.join(', ')})`
+              }}
             >
-              Lainnya Games
-            </Button>
-          </DialogActions>
-        </div>
-      </Dialog>
+              <Play className="icon" />
+              Mulai Pertahanan!
+            </motion.button>
 
-      {/* Game Over Dialog */}
-      <Dialog open={gameState === 'failed'} onClose={() => setGameState('menu')} maxWidth="sm" fullWidth>
-        <div className="bg-gradient-to-br from-red-900 via-red-800 to-red-700">
-          <DialogTitle className="text-white text-center">
-            <div className="text-6xl mb-4">💥</div>
-            <Typography variant="h4" className="font-bold">
-              Kelas Kalah!
-            </Typography>
-          </DialogTitle>
-          <DialogContent className="text-white text-center">
-            <Typography variant="h6" className="mb-4">
-              Tugas dan PR menyerbu kelas! 
-            </Typography>
-            <Typography variant="body1" className="text-gray-300">
-              Jangan menyerah, coba lagi dan pertahankan kelas XE-4!
-            </Typography>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-black/30 rounded-lg p-4">
-                <Typography variant="h5" className="text-red-400">{score}</Typography>
-                <Typography variant="body2" className="text-gray-400">Score</Typography>
-              </div>
-              <div className="bg-black/30 rounded-lg p-4">
-                <Typography variant="h5" className="text-orange-400">{wave}</Typography>
-                <Typography variant="body2" className="text-gray-400">Wave Reached</Typography>
+            <div className="menu-instructions">
+              <p><strong>🎮 Kontrol:</strong></p>
+              <p>• Klik di grid untuk menempatkan tower</p>
+              <p>• Jangan letakkan tower di jalur musuh</p>
+              <p>• Kumpulkan uang untuk tower yang lebih kuat!</p>
+            </div>
+          </div>
+        )}
+
+        {gameState.status === 'playing' && (
+          <div className="game-controls">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={pauseGame}
+              className="control-btn pause"
+            >
+              <Pause className="icon" />
+            </motion.button>
+
+            <div className="wave-controls">
+              <motion.button
+                whileHover={{ scale: 1.05, backgroundColor: '#4ECDC4' }}
+                whileTap={{ scale: 0.95 }}
+                onClick={startWave}
+                disabled={gameState.enemies.length > 0}
+                className="wave-btn"
+              >
+                <Zap className="icon" />
+                Mulai Wave!
+              </motion.button>
+              
+              <div className="game-instructions">
+                <p>🎯 Klik di grid untuk menempatkan {TOWER_TYPES[selectedTower].name}</p>
+                <p>💰 Biaya: {TOWER_TYPES[selectedTower].cost}</p>
               </div>
             </div>
-          </DialogContent>
-          <DialogActions className="justify-center pb-6">
-            <Button 
-              onClick={() => initializeGame(level)}
-              className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white"
-              startIcon={<RefreshIcon />}
+          </div>
+        )}
+
+        {gameState.status === 'paused' && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="pause-screen"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="pause-icon"
             >
+              ⏸️
+            </motion.div>
+            <h3>Pertahanan Dijeda</h3>
+            <p>Tower sedang istirahat... 🏰💤</p>
+            <button onClick={resumeGame} className="resume-btn">
+              <Play className="icon" />
+              Lanjutkan
+            </button>
+          </motion.div>
+        )}
+
+        {gameState.status === 'gameOver' && (
+          <motion.div
+            initial={{ scale: 0, y: 100 }}
+            animate={{ scale: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 200 }}
+            className="game-over-screen"
+          >
+            <motion.div
+              animate={{ 
+                rotate: [0, -15, 15, -15, 0],
+                y: [0, -30, 0]
+              }}
+              transition={{ duration: 1, repeat: Infinity }}
+              className="destroyed-castle"
+            >
+              🏰💥
+            </motion.div>
+            
+            <h3>Basis Telah Jatuh!</h3>
+            
+            <div className="final-stats">
+              <motion.div 
+                className="stat-item"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <Trophy className="icon" />
+                <span>Score: {gameState.score.toLocaleString()}</span>
+              </motion.div>
+              
+              <motion.div 
+                className="stat-item"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <Target className="icon" />
+                <span>Wave: {gameState.wave}</span>
+              </motion.div>
+              
+              <motion.div 
+                className="stat-item"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <Castle className="icon" />
+                <span>Towers Built: {gameState.towers.length}</span>
+              </motion.div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={restartGame}
+              className="restart-button"
+              style={{ 
+                background: `linear-gradient(45deg, ${TOWER_THEMES[selectedTower].colors.join(', ')})`
+              }}
+            >
+              <RotateCcw className="icon" />
               Coba Lagi
-            </Button>
-            <Button 
-              onClick={resetGame}
-              className="text-white border-white hover:bg-white hover:text-red-900"
-            >
-              Menu Utama
-            </Button>
-          </DialogActions>
-        </div>
-      </Dialog>
+            </motion.button>
+          </motion.div>
+        )}
+      </motion.div>
+
+      {/* Settings Toggle */}
+      <motion.button
+        whileHover={{ scale: 1.1, rotate: 180 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setShowSettings(!showSettings)}
+        className="settings-toggle"
+      >
+        ⚙️
+      </motion.button>
     </div>
   );
 };
 
 export default TowerDefense;
+
