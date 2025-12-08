@@ -27,7 +27,7 @@ const Game = lazy(() => import("./Pages/Game"));
 const MusicDedication = lazy(() => import("./components/MusicDedication.jsx"));
 
 // Games dengan path yang sudah diperbarui
-const FishIt = lazy(() => import("./Pages/game/FishIt.jsx"));
+const FishIt = lazy(() => import("./Pages/game/Fishit.jsx"));
 const DinoRunner = lazy(() => import("./Pages/game/DinoRunner.jsx"));
 const BlockBlast = lazy(() => import("./Pages/game/BlockBlast.jsx"));
 const GameReme = lazy(() => import("./Pages/game/GameReme"));
